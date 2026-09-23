@@ -3,6 +3,12 @@
 An Android Qur'an reader that listens while you recite and shows, word by word,
 which words it matched.
 
+| | |
+|---|---|
+| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) |
+
+Running on an Android 16 emulator.
+
 ## What it does
 
 - Six short surahs — Al-Fatihah, Al-'Asr, Al-Kawthar, Al-Ikhlas, Al-Falaq, An-Nas.
@@ -10,6 +16,12 @@ which words it matched.
   turn green, misread words amber, skipped words grey.
 - Verse words fade in right-to-left as the verse is read; the microphone's rings
   pulse to your actual input level; the score bar animates to the result.
+
+| | |
+|---|---|
+| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) |
+
+Running on an Android 16 emulator.
 
 ## What it does **not** do
 
@@ -31,13 +43,22 @@ language pack being installed and on a vendor engine that was trained on ordinar
 speech, not recitation. A poor result usually means the recogniser did not
 understand, not that the recitation was wrong.
 
-## The text
+## The text — where it comes from
 
-Every verse is fetched from the [Quran.com API](https://api.quran.com/api/v4)
-(Uthmani script) by [`tools/fetch_quran.py`](tools/fetch_quran.py) and committed
-verbatim to `app/src/main/assets/quran.json`. **No Qur'anic text is typed by
-hand.** Rerun the script to regenerate it. Translation is Saheeh International,
-as served by the same API.
+| | |
+|---|---|
+| Arabic | [Quran.com API v4](https://api.quran.com/api/v4), endpoint `/quran/verses/uthmani`, field `text_uthmani` — the Uthmani script Quran.com serves |
+| Translation | Saheeh International (English), the same API, translation resource id `20` |
+| Fetched by | [`tools/fetch_quran.py`](tools/fetch_quran.py) |
+| Stored at | `app/src/main/assets/quran.json`, committed verbatim |
+
+**No Qur'anic text is typed by hand**, here or anywhere in this repository.
+Writing scripture from memory risks errors that would be both a correctness
+failure and a serious one, so it is fetched from a published source and committed
+exactly as received. Rerun the script to regenerate.
+
+If you would rather use a different published text or translation, change the
+`SURAHS` list and the translation id in that script and rerun it.
 
 ## Build and test
 
@@ -66,8 +87,12 @@ word and mispronouncing one are different mistakes to a learner.
 
 ## Honest status
 
-- `core` is tested and green.
-- `app` compiles to a debug APK.
-- **Not yet run on a device or emulator.** Speech recognition needs a real
-  microphone and the Arabic pack, so the end-to-end path — permission, listening,
-  recognition, scoring — is unverified. Expect rough edges on first run.
+- `core` is tested and green — 14 tests.
+- `app` builds and **runs on an emulator**: the surah list, verse rendering
+  (right-to-left, diacritics intact), verse switching, the microphone permission
+  prompt, and the listening state all work. Screenshots above are from that run.
+- **The recognition result itself is still unverified.** An emulator has no
+  microphone, so nothing has ever been recited into this app. The path from
+  recognised text to a score is covered by unit tests, but the path from a human
+  voice to recognised text has never run. That is the part to distrust until you
+  try it on a phone.

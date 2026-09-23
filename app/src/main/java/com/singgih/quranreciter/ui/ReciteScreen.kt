@@ -72,14 +72,51 @@ fun ReciteScreen(
     var selected by remember(surah) { mutableStateOf(surah.verses.first()) }
     var state by remember { mutableStateOf<ListenState>(ListenState.Idle) }
     var result by remember { mutableStateOf<RecitationResult?>(null) }
+    var awaitingPermission by remember { mutableStateOf(false) }
+
+    val listening = state is ListenState.Listening || state is ListenState.Hearing
+
+    fun beginListening() {
+        result = null
+        speech.start { s -> 
+            state = s
+            if (s is ListenState.Done) {
+                result = RecitationMatcher.match(selected.arabic, s.text)
+            }
+        }
+    }
+
+    fun stopListening(reason: String? = null) {
+        speech.stop()
+        state = reason?.let { ListenState.Failed(it) } ?: ListenState.Idle
+    }
+
+    // Granting the permission should start the recitation the tap asked for,
+    // rather than making the user tap a second time.
+    LaunchedEffect(hasMicPermission) {
+        if (hasMicPermission && awaitingPermission) {
+            awaitingPermission = false
+            beginListening()
+        }
+    }
+
+    // Some engines never call back — no result, no error. Without this the UI
+    // sits on "Listening…" forever with no way out.
+    LaunchedEffect(listening) {
+        if (listening) {
+            delay(15_000)
+            if (state is ListenState.Listening || state is ListenState.Hearing) {
+                stopListening("Nothing heard — check the microphone and the Arabic language pack")
+            }
+        }
+    }
 
     DisposableEffect(Unit) { onDispose { speech.stop() } }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(surah.name, style = MaterialTheme.typography.headlineSmall)
         Text(
             surah.meaning,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
@@ -95,7 +132,7 @@ fun ReciteScreen(
         Surface(
             shape = RoundedCornerShape(20.dp),
             tonalElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(18.dp)) {
                 AnimatedVerse(verse = selected, result = result)
@@ -112,18 +149,15 @@ fun ReciteScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.weight(1f))
         MicButton(
             state = state,
             enabled = speech.available,
             onClick = {
-                if (!hasMicPermission) { onRequestMic(); return@MicButton }
-                result = null
-                speech.start { s ->
-                    state = s
-                    if (s is ListenState.Done) {
-                        result = RecitationMatcher.match(selected.arabic, s.text)
-                    }
+                when {
+                    listening -> stopListening()
+                    !hasMicPermission -> { awaitingPermission = true; onRequestMic() }
+                    else -> beginListening()
                 }
             },
         )
