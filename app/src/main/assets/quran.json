@@ -1,0 +1,184 @@
+[
+  {
+    "number": 1,
+    "name": "Al-Fatihah",
+    "meaning": "The Opening",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ",
+        "translation": "In the name of Allāh, the Entirely Merciful, the Especially Merciful."
+      },
+      {
+        "number": 2,
+        "arabic": "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَـٰلَمِينَ",
+        "translation": "[All] praise is [due] to Allāh, Lord of the worlds -"
+      },
+      {
+        "number": 3,
+        "arabic": "ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ",
+        "translation": "The Entirely Merciful, the Especially Merciful,"
+      },
+      {
+        "number": 4,
+        "arabic": "مَـٰلِكِ يَوْمِ ٱلدِّينِ",
+        "translation": "Sovereign of the Day of Recompense."
+      },
+      {
+        "number": 5,
+        "arabic": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ",
+        "translation": "It is You we worship and You we ask for help."
+      },
+      {
+        "number": 6,
+        "arabic": "ٱهْدِنَا ٱلصِّرَٰطَ ٱلْمُسْتَقِيمَ",
+        "translation": "Guide us to the straight path -"
+      },
+      {
+        "number": 7,
+        "arabic": "صِرَٰطَ ٱلَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ ٱلْمَغْضُوبِ عَلَيْهِمْ وَلَا ٱلضَّآلِّينَ",
+        "translation": "The path of those upon whom You have bestowed favor, not of those who have earned [Your] anger or of those who are astray."
+      }
+    ]
+  },
+  {
+    "number": 103,
+    "name": "Al-Asr",
+    "meaning": "The Declining Day",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "وَٱلْعَصْرِ",
+        "translation": "By time,"
+      },
+      {
+        "number": 2,
+        "arabic": "إِنَّ ٱلْإِنسَـٰنَ لَفِى خُسْرٍ",
+        "translation": "Indeed, mankind is in loss,"
+      },
+      {
+        "number": 3,
+        "arabic": "إِلَّا ٱلَّذِينَ ءَامَنُوا۟ وَعَمِلُوا۟ ٱلصَّـٰلِحَـٰتِ وَتَوَاصَوْا۟ بِٱلْحَقِّ وَتَوَاصَوْا۟ بِٱلصَّبْرِ",
+        "translation": "Except for those who have believed and done righteous deeds and advised each other to truth and advised each other to patience."
+      }
+    ]
+  },
+  {
+    "number": 108,
+    "name": "Al-Kawthar",
+    "meaning": "Abundance",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "إِنَّآ أَعْطَيْنَـٰكَ ٱلْكَوْثَرَ",
+        "translation": "Indeed, We have granted you, [O Muḥammad], al-Kawthar."
+      },
+      {
+        "number": 2,
+        "arabic": "فَصَلِّ لِرَبِّكَ وَٱنْحَرْ",
+        "translation": "So pray to your Lord and offer sacrifice [to Him alone]."
+      },
+      {
+        "number": 3,
+        "arabic": "إِنَّ شَانِئَكَ هُوَ ٱلْأَبْتَرُ",
+        "translation": "Indeed, your enemy is the one cut off."
+      }
+    ]
+  },
+  {
+    "number": 112,
+    "name": "Al-Ikhlas",
+    "meaning": "Sincerity",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "قُلْ هُوَ ٱللَّهُ أَحَدٌ",
+        "translation": "Say, \"He is Allāh, [who is] One,"
+      },
+      {
+        "number": 2,
+        "arabic": "ٱللَّهُ ٱلصَّمَدُ",
+        "translation": "Allāh, the Eternal Refuge."
+      },
+      {
+        "number": 3,
+        "arabic": "لَمْ يَلِدْ وَلَمْ يُولَدْ",
+        "translation": "He neither begets nor is born,"
+      },
+      {
+        "number": 4,
+        "arabic": "وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌۢ",
+        "translation": "Nor is there to Him any equivalent.\""
+      }
+    ]
+  },
+  {
+    "number": 113,
+    "name": "Al-Falaq",
+    "meaning": "The Daybreak",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "قُلْ أَعُوذُ بِرَبِّ ٱلْفَلَقِ",
+        "translation": "Say, \"I seek refuge in the Lord of daybreak"
+      },
+      {
+        "number": 2,
+        "arabic": "مِن شَرِّ مَا خَلَقَ",
+        "translation": "From the evil of that which He created"
+      },
+      {
+        "number": 3,
+        "arabic": "وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ",
+        "translation": "And from the evil of darkness when it settles"
+      },
+      {
+        "number": 4,
+        "arabic": "وَمِن شَرِّ ٱلنَّفَّـٰثَـٰتِ فِى ٱلْعُقَدِ",
+        "translation": "And from the evil of the blowers in knots"
+      },
+      {
+        "number": 5,
+        "arabic": "وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",
+        "translation": "And from the evil of an envier when he envies.\""
+      }
+    ]
+  },
+  {
+    "number": 114,
+    "name": "An-Nas",
+    "meaning": "Mankind",
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "قُلْ أَعُوذُ بِرَبِّ ٱلنَّاسِ",
+        "translation": "Say, \"I seek refuge in the Lord of mankind,"
+      },
+      {
+        "number": 2,
+        "arabic": "مَلِكِ ٱلنَّاسِ",
+        "translation": "The Sovereign of mankind,"
+      },
+      {
+        "number": 3,
+        "arabic": "إِلَـٰهِ ٱلنَّاسِ",
+        "translation": "The God of mankind,"
+      },
+      {
+        "number": 4,
+        "arabic": "مِن شَرِّ ٱلْوَسْوَاسِ ٱلْخَنَّاسِ",
+        "translation": "From the evil of the retreating whisperer -"
+      },
+      {
+        "number": 5,
+        "arabic": "ٱلَّذِى يُوَسْوِسُ فِى صُدُورِ ٱلنَّاسِ",
+        "translation": "Who whispers [evil] into the breasts of mankind -"
+      },
+      {
+        "number": 6,
+        "arabic": "مِنَ ٱلْجِنَّةِ وَٱلنَّاسِ",
+        "translation": "From among the jinn and mankind\"."
+      }
+    ]
+  }
+]
