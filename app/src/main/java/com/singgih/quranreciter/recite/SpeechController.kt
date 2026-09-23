@@ -1,9 +1,12 @@
 package com.singgih.quranreciter.recite
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.os.Bundle
 import android.speech.RecognitionListener
+import android.speech.RecognitionService
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 
@@ -27,9 +30,28 @@ sealed interface ListenState {
  */
 class SpeechController(private val context: Context) {
 
+    private companion object { const val TAG = "Recite" }
+
     private var recognizer: SpeechRecognizer? = null
 
     val available: Boolean get() = SpeechRecognizer.isRecognitionAvailable(context)
+
+    /**
+     * Google's full recogniser, if it is installed.
+     *
+     * The system default is often `com.google.android.tts`, a small on-device
+     * model that ships with a handful of languages and frequently not Arabic.
+     * `googlequicksearchbox` is the full engine. Targeting it explicitly is the
+     * difference between Arabic working and a bare "language unavailable".
+     */
+    private fun preferredService(): ComponentName? {
+        val intent = Intent(RecognitionService.SERVICE_INTERFACE)
+        val services = context.packageManager.queryIntentServices(intent, 0)
+        val best = services.firstOrNull {
+            it.serviceInfo.packageName == "com.google.android.googlequicksearchbox"
+        } ?: return null
+        return ComponentName(best.serviceInfo.packageName, best.serviceInfo.name)
+    }
 
     fun start(onState: (ListenState) -> Unit) {
         if (!available) {
@@ -37,7 +59,13 @@ class SpeechController(private val context: Context) {
             return
         }
         stop()
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+        val service = preferredService()
+        Log.i(TAG, "using recogniser: ${service?.flattenToShortString() ?: "system default"}")
+
+        recognizer = (
+            if (service != null) SpeechRecognizer.createSpeechRecognizer(context, service)
+            else SpeechRecognizer.createSpeechRecognizer(context)
+        ).apply {
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) = onState(ListenState.Listening)
                 override fun onRmsChanged(rmsdB: Float) = onState(ListenState.Hearing(rmsdB))
@@ -46,9 +74,13 @@ class SpeechController(private val context: Context) {
                         .getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?.firstOrNull()
                         .orEmpty()
+                    Log.i(TAG, "heard: \"$text\"")
                     onState(ListenState.Done(text))
                 }
-                override fun onError(error: Int) = onState(ListenState.Failed(describe(error)))
+                override fun onError(error: Int) {
+                    Log.w(TAG, "recognition error $error: ${describe(error)}")
+                    onState(ListenState.Failed(describe(error)))
+                }
                 override fun onBeginningOfSpeech() = Unit
                 override fun onEndOfSpeech() = Unit
                 override fun onBufferReceived(buffer: ByteArray?) = Unit
@@ -61,9 +93,15 @@ class SpeechController(private val context: Context) {
                         RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                         RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
                     )
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar")
-                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                    // ar-SA is recognised more widely than bare "ar".
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ar-SA")
+                    putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                    // NOT offline-only: the on-device Arabic model is usually
+                    // absent, and forcing offline turns that into a hard failure
+                    // instead of falling back to the network.
+                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, false)
                 }
             )
         }

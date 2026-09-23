@@ -14,15 +14,9 @@ import urllib.request
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / 'app/src/main/assets/quran.json'
 
-# Short surahs, the ones a learner practises first.
-SURAHS = [
-    (1, 'Al-Fatihah', 'The Opening'),
-    (103, 'Al-Asr', 'The Declining Day'),
-    (108, 'Al-Kawthar', 'Abundance'),
-    (112, 'Al-Ikhlas', 'Sincerity'),
-    (113, 'Al-Falaq', 'The Daybreak'),
-    (114, 'An-Nas', 'Mankind'),
-]
+# Al-Fatihah plus the whole of Juz 'Amma (78-114) — the short surahs, and the
+# ones learners memorise first. Names come from the API too, never typed here.
+SURAH_NUMBERS = [1] + list(range(78, 115))
 
 
 def plain(text):
@@ -38,9 +32,20 @@ def get(url):
         return json.load(r)
 
 
+def chapter_names():
+    """Surah names and their English meaning, from the API rather than by hand."""
+    data = get('https://api.quran.com/api/v4/chapters?language=en')['chapters']
+    return {
+        c['id']: (c['name_simple'], c['translated_name']['name'])
+        for c in data
+    }
+
+
 def main():
+    names = chapter_names()
     out = []
-    for number, name, meaning in SURAHS:
+    for number in SURAH_NUMBERS:
+        name, meaning = names[number]
         arabic = get(
             f'https://api.quran.com/api/v4/quran/verses/uthmani?chapter_number={number}'
         )['verses']

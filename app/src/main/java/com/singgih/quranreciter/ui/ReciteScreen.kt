@@ -73,11 +73,15 @@ fun ReciteScreen(
     var state by remember { mutableStateOf<ListenState>(ListenState.Idle) }
     var result by remember { mutableStateOf<RecitationResult?>(null) }
     var awaitingPermission by remember { mutableStateOf(false) }
+    // Identifies one listening session, so a watchdog cannot clobber the result
+    // of the session that already finished.
+    var session by remember { mutableIntStateOf(0) }
 
     val listening = state is ListenState.Listening || state is ListenState.Hearing
 
     fun beginListening() {
         result = null
+        session++
         speech.start { s -> 
             state = s
             if (s is ListenState.Done) {
@@ -102,12 +106,14 @@ fun ReciteScreen(
 
     // Some engines never call back — no result, no error. Without this the UI
     // sits on "Listening…" forever with no way out.
-    LaunchedEffect(listening) {
-        if (listening) {
-            delay(15_000)
-            if (state is ListenState.Listening || state is ListenState.Hearing) {
-                stopListening("Nothing heard — check the microphone and the Arabic language pack")
-            }
+    LaunchedEffect(session, listening) {
+        if (!listening) return@LaunchedEffect
+        val watched = session
+        delay(15_000)
+        val stillStuck = watched == session &&
+            (state is ListenState.Listening || state is ListenState.Hearing)
+        if (stillStuck) {
+            stopListening("Nothing heard — check the microphone and the Arabic language pack")
         }
     }
 
