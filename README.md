@@ -3,25 +3,25 @@
 An Android Qur'an reader that listens while you recite and shows, word by word,
 which words it matched.
 
-| | |
-|---|---|
-| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) |
+| | | |
+|---|---|---|
+| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) | ![A long verse](docs/screenshot-longverse.png) |
 
-Running on an Android 16 emulator.
+Running on a Redmi Note 9, Android 12.
 
 ## What it does
 
-- Six short surahs — Al-Fatihah, Al-'Asr, Al-Kawthar, Al-Ikhlas, Al-Falaq, An-Nas.
+- **38 surahs, 571 verses** — Al-Fatihah plus all of Juz 'Amma (78–114).
 - Tap a verse, tap the microphone, recite. The verse then animates: matched words
   turn green, misread words amber, skipped words grey.
 - Verse words fade in right-to-left as the verse is read; the microphone's rings
   pulse to your actual input level; the score bar animates to the result.
 
-| | |
-|---|---|
-| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) |
+| | | |
+|---|---|---|
+| ![Surah list](docs/screenshot-surahs.png) | ![Recite screen](docs/screenshot-recite.png) | ![A long verse](docs/screenshot-longverse.png) |
 
-Running on an Android 16 emulator.
+Running on a Redmi Note 9, Android 12.
 
 ## What it does **not** do
 
@@ -88,9 +88,12 @@ word and mispronouncing one are different mistakes to a learner.
 ## Honest status
 
 - `core` is tested and green — 14 tests.
-- `app` builds and **runs on an emulator**: the surah list, verse rendering
-  (right-to-left, diacritics intact), verse switching, the microphone permission
-  prompt, and the listening state all work. Screenshots above are from that run.
+- `app` builds and **runs on a physical device** (Redmi Note 9, Android 12): the
+  surah list, verse rendering right-to-left with diacritics intact, verse
+  switching across surahs up to 46 verses, the microphone permission prompt, the
+  listening state and its timeout all work. Screenshots above are from that phone.
+- The recogniser resolves to Google's full engine and **accepts Arabic** — on
+  silence it returns `NO_MATCH`, not `LANGUAGE_UNAVAILABLE`.
 - **The recognition result itself is still unverified.** An emulator has no
   microphone, so nothing has ever been recited into this app. The path from
   recognised text to a score is covered by unit tests, but the path from a human

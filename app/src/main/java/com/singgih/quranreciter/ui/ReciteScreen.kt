@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -174,8 +176,21 @@ fun ReciteScreen(
 /** Verse numbers as a row of chips; the selected one scales up. */
 @Composable
 private fun VerseChips(verses: List<Verse>, selected: Verse, onSelect: (Verse) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        verses.forEach { verse ->
+    val listState = rememberLazyListState()
+
+    // A plain Row clipped everything past the sixth chip. Juz 'Amma surahs run to
+    // 40+ verses, so this scrolls, and follows the selection when it moves.
+    LaunchedEffect(selected.number) {
+        listState.animateScrollToItem(index = (selected.number - 1).coerceAtLeast(0))
+    }
+
+    LazyRow(
+        state = listState,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(end = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        items(verses, key = { it.number }) { verse ->
             val isSelected = verse.number == selected.number
             val scale by animateFloatAsState(if (isSelected) 1.12f else 1f, label = "chip")
             AssistChip(
