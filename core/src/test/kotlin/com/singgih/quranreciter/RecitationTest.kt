@@ -5,6 +5,7 @@ import com.singgih.quranreciter.recite.RecitationMatcher
 import com.singgih.quranreciter.recite.WordStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import java.io.File
 import kotlin.test.assertTrue
 
 class ArabicNormalizerTest {
@@ -44,6 +45,27 @@ class ArabicNormalizerTest {
     fun `empty input is handled`() {
         assertEquals(emptyList(), ArabicNormalizer.words("   "))
     }
+
+    @Test
+    fun `a standalone pause mark stays on the word before it`() {
+        val shown = ArabicNormalizer.displayWords("قل ۖ هو الله")
+        assertEquals(listOf("قل ۖ", "هو", "الله"), shown)
+        assertEquals(ArabicNormalizer.words("قل ۖ هو الله").size, shown.size)
+        assertEquals(listOf("۞ قل", "هو"), ArabicNormalizer.displayWords("۞ قل هو"))
+    }
+
+    @Test
+    fun `every bundled verse draws exactly as many words as it matches`() {
+        // The UI colours displayWords[i] by result.words[i]; any drift paints
+        // the wrong word. Checked against the real text, all of it.
+        val json = File("../app/src/main/assets/quran.json").readText()
+        val verses = Regex("\"arabic\": \"([^\"]*)\"").findAll(json).map { it.groupValues[1] }.toList()
+        assertEquals(571, verses.size)
+        verses.forEach {
+            assertEquals(ArabicNormalizer.words(it).size, ArabicNormalizer.displayWords(it).size, it)
+            assertEquals(ArabicNormalizer.words(it).size, ArabicNormalizer.words(it, daggerAlif = "").size, it)
+        }
+    }
 }
 
 class RecitationMatcherTest {
@@ -56,6 +78,7 @@ class RecitationMatcherTest {
         assertEquals(4, r.total)
         assertEquals(4, r.correctCount)
         assertEquals(1f, r.accuracy)
+        assertEquals(3, r.stars)
         assertTrue(r.extraHeard.isEmpty())
     }
 
@@ -64,6 +87,7 @@ class RecitationMatcherTest {
         // "هو" dropped — the words after it are still correct
         val r = RecitationMatcher.match(ikhlas1, "قل الله احد")
         assertEquals(3, r.correctCount)
+        assertEquals(2, r.stars, "3 of 4 is 75%")
         assertEquals(WordStatus.MISSED, r.words[1].status)
         assertEquals(WordStatus.CORRECT, r.words[2].status)
         assertEquals(WordStatus.CORRECT, r.words[3].status)
@@ -89,6 +113,7 @@ class RecitationMatcherTest {
         val r = RecitationMatcher.match(ikhlas1, "")
         assertEquals(0, r.correctCount)
         assertEquals(0f, r.accuracy)
+        assertEquals(0, r.stars)
         assertTrue(r.words.all { it.status == WordStatus.MISSED })
     }
 
@@ -103,6 +128,41 @@ class RecitationMatcherTest {
         val r = RecitationMatcher.match("", "قل")
         assertEquals(0, r.total)
         assertEquals(0f, r.accuracy)
+    }
+
+    @Test
+    fun `Uthmani long vowels match how a recogniser spells them`() {
+        // Uthmani words as bundled, against modern spelling. Before these folds
+        // about 4% of words recited perfectly still scored as misread.
+        listOf(
+            "ٱلرَّحْمَـٰنِ" to "الرحمن", // superscript alif dropped in modern spelling
+            "ٱلْعَـٰلَمِينَ" to "العالمين", // ...and written out here
+            "ٱلْحَيَوٰةَ" to "الحياة", // a silent waw is an alif
+            "ٱلسَّمَـٰوَٰتِ" to "السماوات", // but a voweled waw is a real waw
+            "أَتَىٰكَ" to "أتاك", // ya + superscript alif mid-word is an alif
+            "إِلَىٰ" to "إلى", // and stays a ya at the end
+            "ءَامَنُوا۟" to "آمنوا", // hamza + alif is madd
+            "وَٱلَّيْلِ" to "والليل", // one lam in Uthmani, two in modern
+        ).forEach { (uthmani, spoken) ->
+            assertEquals(1, RecitationMatcher.match(uthmani, spoken).correctCount, "$uthmani vs $spoken")
+        }
+    }
+
+    @Test
+    fun `a real difference still fails after folding`() {
+        assertEquals(0, RecitationMatcher.match("ٱلسَّمَـٰوَٰتِ", "السمات").correctCount)
+    }
+
+    @Test
+    fun `a whole-surah result splits back into verses`() {
+        // Al-Ikhlas 1 and 2 recited together, with the second verse's first word skipped
+        val verses = listOf("قُلْ هُوَ ٱللَّهُ أَحَدٌ", "ٱللَّهُ ٱلصَّمَدُ")
+        val r = RecitationMatcher.match(verses.joinToString(" "), "قل هو الله احد الصمد")
+        val first = r.slice(0, 4)
+        val second = r.slice(4, 6)
+        assertEquals(3, first.stars)
+        assertEquals(1, second.correctCount)
+        assertEquals(WordStatus.MISSED, second.words[0].status)
     }
 
     @Test
