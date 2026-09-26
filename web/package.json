@@ -1,0 +1,14 @@
+{
+  "name": "recite-quest-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env.local dev.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "jose": "^6.2.12"
+  },
+  "engines": { "node": ">=20" }
+}
