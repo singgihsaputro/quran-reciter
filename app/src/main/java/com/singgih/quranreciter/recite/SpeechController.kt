@@ -10,6 +10,9 @@ import android.speech.RecognitionService
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 
+/** Why listening stopped without a result; the UI words it in the chosen language. */
+enum class Failure { NO_RECOGNISER, MICROPHONE, NO_MATCH, NO_SPEECH, PERMISSION, NETWORK, NO_ARABIC, STUCK, OTHER }
+
 /** What the microphone is doing, for the UI to animate against. */
 sealed interface ListenState {
     data object Idle : ListenState
@@ -17,7 +20,7 @@ sealed interface ListenState {
     /** rms is the live input level, for the pulsing rings. */
     data class Hearing(val rms: Float) : ListenState
     data class Done(val text: String) : ListenState
-    data class Failed(val reason: String) : ListenState
+    data class Failed(val reason: Failure) : ListenState
 }
 
 /**
@@ -53,9 +56,10 @@ class SpeechController(private val context: Context) {
         return ComponentName(best.serviceInfo.packageName, best.serviceInfo.name)
     }
 
-    fun start(onState: (ListenState) -> Unit) {
+    /** [onPartial] gets the text so far, so words can light up as they are said. */
+    fun start(onPartial: (String) -> Unit = {}, onState: (ListenState) -> Unit) {
         if (!available) {
-            onState(ListenState.Failed("No speech recogniser on this device"))
+            onState(ListenState.Failed(Failure.NO_RECOGNISER))
             return
         }
         stop()
@@ -84,7 +88,12 @@ class SpeechController(private val context: Context) {
                 override fun onBeginningOfSpeech() = Unit
                 override fun onEndOfSpeech() = Unit
                 override fun onBufferReceived(buffer: ByteArray?) = Unit
-                override fun onPartialResults(partialResults: Bundle?) = Unit
+                override fun onPartialResults(partialResults: Bundle?) {
+                    partialResults
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()
+                        ?.let(onPartial)
+                }
                 override fun onEvent(eventType: Int, params: Bundle?) = Unit
             })
             startListening(
@@ -98,6 +107,7 @@ class SpeechController(private val context: Context) {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "ar-SA")
                     putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     // NOT offline-only: the on-device Arabic model is usually
                     // absent, and forcing offline turns that into a hard failure
                     // instead of falling back to the network.
@@ -113,14 +123,12 @@ class SpeechController(private val context: Context) {
     }
 
     private fun describe(error: Int) = when (error) {
-        SpeechRecognizer.ERROR_AUDIO -> "Microphone error"
-        SpeechRecognizer.ERROR_NO_MATCH -> "Did not catch that — try again"
-        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech heard"
-        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission denied"
-        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-            "Network needed — the Arabic pack may not be installed for offline use"
-        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
-            "Arabic is not installed for speech recognition on this device"
-        else -> "Recognition failed"
+        SpeechRecognizer.ERROR_AUDIO -> Failure.MICROPHONE
+        SpeechRecognizer.ERROR_NO_MATCH -> Failure.NO_MATCH
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> Failure.NO_SPEECH
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> Failure.PERMISSION
+        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> Failure.NETWORK
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> Failure.NO_ARABIC
+        else -> Failure.OTHER
     }
 }
