@@ -306,3 +306,4 @@ body.has-nav .dock { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 }
 .email-signin input.code { letter-spacing: 6px; text-align: center; font-size: 22px; font-weight: 800; }
 .email-signin input[hidden], .email-signin button[hidden] { display: none; }
+.pill.sound { justify-self: center; font-size: 14px; }

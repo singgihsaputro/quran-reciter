@@ -6,6 +6,7 @@
 
 import { displayWords, match, slice, words } from './matcher.js'
 import { canListen, narrator, qari, Recitation, verseUrl, wordUrl } from './media.js'
+import { sfx } from './sfx.js'
 import { languages } from './strings.js'
 
 const $app = document.getElementById('app')
@@ -39,6 +40,14 @@ const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(`recite.${key}`)) ?? fallback } catch { return fallback } },
   set(key, value) { try { localStorage.setItem(`recite.${key}`, JSON.stringify(value)) } catch { /* private mode */ } },
 }
+
+sfx.on = store.get('sound', true)
+// Every button and link clicks — except the mic (the recogniser would hear
+// it) and the words, which already play the qari.
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, a')
+  if (el && !el.disabled && !el.matches('.mic, .w')) sfx.tap()
+}, true)
 
 let lang = store.get('lang', (navigator.language ?? '').toLowerCase().startsWith('id') ? 'id' : 'en')
 let s = languages[lang]
@@ -349,6 +358,11 @@ function reciteScreen(surah, startVerse, startWhole) {
     targets().forEach((v, i) => record(surah.number, v.number, share(r, i).stars))
     maybeAskRating()
     maybeAskInstall()
+    // A chime per star as it pops in (in step with the animation), then the verdict.
+    for (let i = 0; i < r.stars; i++) sfx.star(i, 0.35 + i * 0.22)
+    if (r.stars === 3) sfx.win(1.05)
+    else if (r.stars > 0) sfx.good(0.35 + r.stars * 0.22 + 0.15)
+    else sfx.tryAgain(0.45)
     navigator.vibrate?.(40)
     build()
     resultEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -867,6 +881,16 @@ function supportScreen() {
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
     h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
+    h('button', {
+      class: 'pill sound', 'aria-pressed': String(sfx.on),
+      onclick: e => {
+        sfx.on = !sfx.on
+        store.set('sound', sfx.on)
+        e.currentTarget.textContent = sfx.on ? s.soundOn : s.soundOff
+        e.currentTarget.setAttribute('aria-pressed', String(sfx.on))
+        sfx.tap()
+      },
+    }, sfx.on ? s.soundOn : s.soundOff),
     h('p', { class: 'privacy' }, s.privacy),
     h('footer', { class: 'about' },
       h('span', {}, `${s.about} · ${s.madeBy} `),
