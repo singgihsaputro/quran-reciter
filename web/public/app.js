@@ -284,7 +284,7 @@ function homeScreen() {
         h('div', { class: 'bar', style: `--c:${color}` }, h('i', { style: `width:${(got / max) * 100}%` })),
         h('div', { class: 'tile-stars' }, `★ ${got} / ${max}`))
     }))))
-  maybeAskDonation()
+  maybeAskRating()
   return () => {}
 }
 
@@ -776,7 +776,7 @@ function openSignIn() {
 }
 
 /** 1–5 stars and an optional note, sent to /api/rating. */
-function ratingForm(onSent = () => {}) {
+function ratingForm(onSent) {
   let chosen = 0
   const stars = h('div', { class: 'rate-stars', role: 'group', 'aria-label': s.rateApp }, [1, 2, 3, 4, 5].map(n =>
     h('button', { class: 'rate-star', 'aria-label': s.rateStar(n), 'aria-pressed': 'false', onclick: () => pick(n) }, '★')))
@@ -794,7 +794,7 @@ function ratingForm(onSent = () => {}) {
       await api('POST', '/api/rating', { stars: chosen, text: note.value })
       store.set('rated', Date.now())
       status.textContent = s.rateThanks
-      onSent()
+      onSent(chosen)
     } catch {
       status.textContent = s.rateFailed
       send.disabled = false
@@ -806,15 +806,33 @@ function ratingForm(onSent = () => {}) {
 // A surah counts as done once every verse has earned a star.
 const surahsDone = () => quran.filter(q => q.verses.every(v => starsOf(q.number, v.number) > 0)).length
 
-/** Once, after the third finished surah — when the child has something to judge. */
+/**
+ * Once, from the second day of use or after the third finished surah —
+ * whichever comes first. A 4 or 5 then leads on to the support ask; a lower
+ * rating just gets thanks, never a request for money.
+ */
 function maybeAskRating() {
-  if (store.get('rated') || store.get('ratingAsked') || surahsDone() < 3) return
+  const days = Date.now() - firstSeen >= DAY
+  const surahs = surahsDone() >= 3
+  if (store.get('rated') || store.get('ratingAsked') || !(days || surahs)) return
   store.set('ratingAsked', Date.now())
-  setTimeout(() => openDialog(
-    h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '⭐'),
-    h('h2', {}, s.rateTitle),
-    h('p', {}, s.rateAfter3),
-    ratingForm(() => setTimeout(() => dialog.close(), 1600))), 3000)
+  setTimeout(() => {
+    if (dialog.open) return store.set('ratingAsked', null) // try again another time
+    openDialog(
+      h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '⭐'),
+      h('h2', {}, s.rateTitle),
+      h('p', {}, surahs ? s.rateAfter3 : s.rateAfterDay),
+      ratingForm(afterRating))
+  }, 3000)
+}
+
+/** Thanks, and — only for a 4 or 5 — the invitation to support. */
+function afterRating(stars) {
+  setTimeout(() => (stars >= 4 ? askSupport() : dialog.close()), 1400)
+}
+
+function askSupport() {
+  openDialog(h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '💝'), ...donateCard())
 }
 
 function donateCard() {
@@ -836,14 +854,6 @@ function showQris() {
     h('p', {}, s.qrisThanks))
 }
 
-/** From the second day of use, and at most once a week after that. */
-function maybeAskDonation() {
-  const now = Date.now()
-  if (now - firstSeen < DAY || now - store.get('donationAsked', 0) < 7 * DAY || dialog.open) return
-  store.set('donationAsked', now)
-  setTimeout(() => { if (!dialog.open) openDialog(h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '💝'), ...donateCard()) }, 1500)
-}
-
 // ── Support tab ─────────────────────────────────────────────────────────────
 
 function supportScreen() {
@@ -853,7 +863,7 @@ function supportScreen() {
     h('section', { class: 'card' }, h('h2', {}, s.account), user
       ? [h('p', {}, s.signedInAs(user.email)), h('p', { class: 'note' }, s.syncNote), h('button', { class: 'btn ghost', onclick: signOut }, s.signOut)]
       : [h('p', {}, s.guestNote), googleButton(), emailSignIn(), h('p', { class: 'note' }, s.grownUp)]),
-    h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm()),
+    h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm(stars => { if (stars >= 4) setTimeout(askSupport, 1400) })),
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
     h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
