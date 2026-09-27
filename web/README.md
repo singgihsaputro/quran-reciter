@@ -18,6 +18,15 @@ the last verse and language are saved to the account.
 | `GET /api/me` | user, stars, last state |
 | `PUT /api/progress` | `{ stars, state }` — stars only ever go up |
 | `POST /api/rating` | `{ stars: 1..5, text? }` — signed in or not |
+| `POST /api/event` | `{ type: 'donate_tap' \| 'share' }` — counted for the dashboard |
+| `GET /api/analytics` | the owner's dashboard data — only for emails in `ADMIN_EMAILS` |
+
+## Dashboard
+
+`/analytics` shows sign-ins (who, when), reviews, and taps on Donate and
+Share, with a 30-day chart. The page is public; its data is not — the API
+answers only accounts whose email is in `ADMIN_EMAILS` (comma-separated), so
+set that variable in Vercel alongside the others.
 
 The Google ID token is verified on the server against Google's keys and this
 app's client id; the session is an HttpOnly cookie signed with `SESSION_SECRET`.
@@ -40,7 +49,7 @@ npm test                     # the API against an in-memory database
    Authorized JavaScript origins: your Vercel URL and `http://localhost:3100`.
    No redirect URI is needed.
 3. **Vercel** — import the `quran-reciter` repo, set **Root Directory** to
-   `web`, framework *Other*, and add the four variables from `.env.example`.
+   `web`, framework *Other*, and add the variables from `.env.example`.
 4. Add the Vercel URL to the Google client's origins if it wasn't known yet.
 
 Tables are created on the first request.

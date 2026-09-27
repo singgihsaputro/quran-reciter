@@ -19,6 +19,7 @@ export async function POST(request) {
             picture = excluded.picture, last_seen = excluded.last_seen`,
     args: [account.sub, account.email, account.name ?? null, account.picture ?? null, now, now],
   })
+  await db.execute({ sql: "INSERT INTO events (user_id, type, created_at) VALUES (?, 'login', ?)", args: [account.sub, now] })
   return json(
     { user: { email: account.email, name: account.name ?? null, picture: account.picture ?? null } },
     { headers: { 'set-cookie': await sessionCookie(account.sub) } },

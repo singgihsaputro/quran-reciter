@@ -29,7 +29,9 @@ createServer(async (req, res) => {
       res.writeHead(response.status, Object.fromEntries(response.headers))
       return res.end(Buffer.from(await response.arrayBuffer()))
     }
-    const file = normalize(join('public', url.pathname === '/' ? 'index.html' : url.pathname))
+    // Like vercel.json's cleanUrls: /analytics serves analytics.html.
+    const path = url.pathname === '/' ? 'index.html' : extname(url.pathname) ? url.pathname : `${url.pathname}.html`
+    const file = normalize(join('public', path))
     if (!file.startsWith('public')) return res.writeHead(403).end()
     const content = await readFile(file)
     res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' })

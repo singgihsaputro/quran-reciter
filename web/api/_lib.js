@@ -24,6 +24,10 @@ export function ready() {
     `CREATE TABLE IF NOT EXISTS ratings (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, stars INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
       text TEXT, created_at INTEGER NOT NULL)`,
+    // Sign-ins and taps on Donate / Share, for the owner's dashboard.
+    `CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, type TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+    'CREATE INDEX IF NOT EXISTS events_type_time ON events (type, created_at)',
   ], 'write')
   return schema
 }
@@ -72,6 +76,15 @@ export async function verifyGoogle(credential) {
   })
   if (!payload.email_verified) throw new Error('email not verified')
   return payload
+}
+
+/** Whether this user id belongs to an email in ADMIN_EMAILS (comma-separated). */
+export async function isAdmin(userId) {
+  if (!userId) return false
+  const admins = (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  if (!admins.length) return false
+  const { rows } = await db.execute({ sql: 'SELECT email FROM users WHERE id = ?', args: [userId] })
+  return rows.length > 0 && admins.includes(String(rows[0].email).toLowerCase())
 }
 
 export const json = (data, init) => Response.json(data, init)

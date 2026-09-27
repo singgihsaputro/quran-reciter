@@ -753,7 +753,7 @@ function donateCard() {
   return [
     h('h2', {}, s.donateTitle),
     h('p', {}, s.donateText),
-    h('a', { class: 'btn donate', href: DONATION_URL, target: '_blank', rel: 'noopener' }, s.donate),
+    h('a', { class: 'btn donate', href: DONATION_URL, target: '_blank', rel: 'noopener', onclick: () => track('donate_tap') }, s.donate),
   ]
 }
 
@@ -782,6 +782,11 @@ function supportScreen() {
   return () => {}
 }
 
+
+/** Counts a tap for the owner's dashboard; sendBeacon survives the page leaving. */
+function track(type) {
+  try { navigator.sendBeacon('/api/event', new Blob([JSON.stringify({ type })], { type: 'application/json' })) } catch { /* never block the tap */ }
+}
 
 async function offerInstall() {
   if (installPrompt) {
@@ -815,6 +820,7 @@ function maybeAskInstall() {
 }
 
 async function share() {
+  track('share')
   const data = { title: 'Ayok Ngaji', text: s.shareText, url: location.origin }
   try {
     if (navigator.share) return await navigator.share(data)

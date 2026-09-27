@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#6A4CFF">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<title>Ayok Ngaji · Analytics</title>
+<style>
+  .dash { display: grid; gap: 14px; padding-bottom: 32px; }
+  .dash h1 { color: #fff; margin: 8px 0 0; font-size: 26px; font-weight: 900; }
+  .dash .sub { color: rgba(255,255,255,.9); margin: 2px 0 0; font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { background: #fff; border-radius: 20px; padding: 14px 16px; box-shadow: 0 6px 18px rgba(43,34,80,.16); }
+  .kpi b { display: block; font-size: 28px; font-weight: 900; color: var(--grape); font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); font-size: 13px; font-weight: 700; }
+  .card h2 { margin: 0 0 10px; font-size: 18px; font-weight: 900; color: var(--grape); }
+  .tabs-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs-row button { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; background: rgba(255,255,255,.22); color: #fff; }
+  .tabs-row button[aria-pressed=true] { background: #fff; color: var(--grape); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 800; padding: 6px 8px; border-bottom: 1px solid #EEE9FF; }
+  td { padding: 8px; border-bottom: 1px solid #F4F1FF; vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .guest { color: var(--muted); font-style: italic; }
+  .stars-cell { color: var(--sun); letter-spacing: 1px; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+  .bars div { flex: 1; min-width: 4px; background: var(--grape); border-radius: 4px 4px 0 0; position: relative; }
+  .bars div:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 11px; padding: 3px 6px; border-radius: 6px; white-space: nowrap; }
+  .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .gate { text-align: center; display: grid; gap: 12px; justify-items: center; }
+  .empty { color: var(--muted); font-size: 14px; margin: 0; }
+</style>
+</head>
+<body>
+<main class="dash" id="dash"><p class="loading">🌙</p></main>
+<script type="module" src="analytics.js"></script>
+</body>
+</html>

@@ -13,12 +13,14 @@ const auth = await import('../api/auth.js')
 const me = await import('../api/me.js')
 const progress = await import('../api/progress.js')
 const rating = await import('../api/rating.js')
+const event = await import('../api/event.js')
+const analytics = await import('../api/analytics.js')
 
 const { publicKey, privateKey } = await generateKeyPair('RS256')
 google.keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k', alg: 'RS256' }] })
-const idToken = (claims, audience = 'test-client') => new SignJWT({ email_verified: true, ...claims })
+const idToken = (claims, audience = 'test-client', sub = 'google-123') => new SignJWT({ email_verified: true, ...claims })
   .setProtectedHeader({ alg: 'RS256', kid: 'k' }).setIssuer('https://accounts.google.com')
-  .setAudience(audience).setSubject('google-123').setExpirationTime('5m').sign(privateKey)
+  .setAudience(audience).setSubject(sub).setExpirationTime('5m').sign(privateKey)
 
 const req = (method, bodyData, cookie) => new Request('http://localhost/api', {
   method, headers: { 'content-type': 'application/json', ...(cookie && { cookie }) },
@@ -56,4 +58,28 @@ test('sign in, save, come back to the same state', async () => {
 test('a forged session cookie is ignored', async () => {
   const data = await (await me.GET(req('GET', null, 'rq_session=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.bad'))).json()
   assert.deepEqual(data, { user: null })
+})
+
+test('only an admin can open the dashboard', async () => {
+  process.env.ADMIN_EMAILS = 'Owner@Example.com'
+  const signIn = async (email, sub) => (await auth.POST(req('POST', { credential: await idToken({ email }, 'test-client', sub) })))
+    .headers.get('set-cookie').split(';')[0]
+  const owner = await signIn('owner@example.com', 'google-owner')
+  const parent = await signIn('parent@example.com', 'google-parent')
+
+  assert.equal((await event.POST(req('POST', { type: 'donate_tap' }, parent))).status, 200)
+  assert.equal((await event.POST(req('POST', { type: 'share' }))).status, 200)
+  assert.equal((await event.POST(req('POST', { type: 'anything' }))).status, 400)
+
+  assert.equal((await analytics.GET(req('GET'))).status, 401)
+  assert.equal((await analytics.GET(req('GET', null, parent))).status, 403)
+  const res = await analytics.GET(req('GET', null, owner))
+  assert.equal(res.status, 200)
+  const data = await res.json()
+  assert.equal(data.totals.donate_taps, 1)
+  assert.equal(data.totals.shares, 1)
+  assert.ok(data.logins.some(l => l.email === 'parent@example.com'))
+  assert.equal(data.taps.find(t => t.type === 'donate_tap').email, 'parent@example.com')
+  assert.equal(data.taps.find(t => t.type === 'share').email, null) // a guest
+  assert.ok(data.ratings.length >= 1)
 })
