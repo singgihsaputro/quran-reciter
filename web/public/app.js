@@ -1,4 +1,4 @@
-// Recite Quest on the web: the Android app's screens — the level grid,
+// Ayok Ngaji on the web: the Android app's screens — the level grid,
 // reciting (one verse or a whole surah) and tonight's story — plus Google
 // sign-in that saves stars and the last verse to the account (api/ + Turso),
 // a Support tab with rating and donation, for Safari and Chrome on iPhone and
@@ -15,6 +15,19 @@ const FREE = new Set([1, 112, 113, 114])
 // ponytail: placeholder until the Lynk page exists — swap in the real lynk.id link.
 const DONATION_URL = 'https://lynk.id/'
 const DAY = 864e5
+
+// ── Installing to the home screen ───────────────────────────────────────────
+// Android's Chrome offers a real install prompt; it arrives as an event we keep
+// for the moment the user taps our button. iPhones have no such API, so there
+// the app shows the Share → Add to Home Screen steps instead.
+let installPrompt = null
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e })
+addEventListener('appinstalled', () => { installPrompt = null; store.set('installed', true) })
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || store.get('installed', false)
+const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const canInstall = () => !installed() && (!!installPrompt || iphone)
+// Keeps the app opening on a poor connection, and lets Chrome treat it as installable.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
 
 // Kept in this browser only: best stars per verse, and the chosen language.
 const store = {
@@ -221,11 +234,13 @@ function homeScreen() {
     h('header', { class: 'hero' },
       h('div', { class: 'hero-row' },
         h('span', { class: 'moon', 'aria-hidden': 'true' }, '🌙'),
-        h('h1', {}, 'Recite Quest'),
+        h('h1', {}, 'Ayok Ngaji'),
         h('button', { class: 'pill', 'aria-label': s.switchLanguage, onclick: switchLanguage }, `${s.flag} ${s.code}`),
         starPill(total)),
       h('p', { class: 'tagline' }, s.tagline),
-      user ? null : h('button', { class: 'unlock', onclick: openSignIn }, s.unlockAll)),
+      h('div', { class: 'hero-actions' },
+        user ? null : h('button', { class: 'unlock', onclick: openSignIn }, s.unlockAll),
+        canInstall() ? h('button', { class: 'unlock install', onclick: offerInstall }, s.installButton) : null)),
     continueCard(),
     h('a', { class: 'tonight', href: `#/story/${t}` },
       h('span', { class: 'emoji', 'aria-hidden': 'true' }, story.emoji),
@@ -317,6 +332,7 @@ function reciteScreen(surah, startVerse, startWhole) {
     phase = 'done'
     targets().forEach((v, i) => record(surah.number, v.number, share(r, i).stars))
     maybeAskRating()
+    maybeAskInstall()
     navigator.vibrate?.(40)
     build()
     resultEl?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -759,9 +775,52 @@ function supportScreen() {
       ? [h('p', {}, s.signedInAs(user.email)), h('p', { class: 'note' }, s.syncNote), h('button', { class: 'btn ghost', onclick: signOut }, s.signOut)]
       : [h('p', {}, s.guestNote), googleButton(), h('p', { class: 'note' }, s.grownUp)]),
     h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm()),
-    h('section', { class: 'card' }, ...donateCard()),
+    canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
+      h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
+    h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
     h('p', { class: 'privacy' }, s.privacy)))
   return () => {}
+}
+
+
+async function offerInstall() {
+  if (installPrompt) {
+    const prompt = installPrompt
+    installPrompt = null // each prompt can be shown once
+    await prompt.prompt()
+    await prompt.userChoice
+    if (dialog.open) dialog.close()
+    return route()
+  }
+  openDialog(
+    h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '📲'),
+    h('h2', {}, s.installTitle),
+    h('p', {}, s.installText),
+    h('ol', { class: 'steps' }, s.iosSteps.map(step => h('li', {}, step))))
+}
+
+/** Once, after the first finished recitation — when the app has earned its place. */
+function maybeAskInstall() {
+  if (!canInstall() || store.get('installAsked')) return
+  store.set('installAsked', Date.now())
+  setTimeout(() => {
+    if (dialog.open) return
+    openDialog(
+      h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '📲'),
+      h('h2', {}, s.installTitle),
+      h('p', {}, s.installText),
+      installPrompt ? h('button', { class: 'btn', onclick: offerInstall }, s.install)
+        : h('ol', { class: 'steps' }, s.iosSteps.map(step => h('li', {}, step))))
+  }, 3500)
+}
+
+async function share() {
+  const data = { title: 'Ayok Ngaji', text: s.shareText, url: location.origin }
+  try {
+    if (navigator.share) return await navigator.share(data)
+    await navigator.clipboard.writeText(`${data.text} ${data.url}`)
+    openDialog(h('p', {}, s.shared))
+  } catch { /* the user closed the share sheet */ }
 }
 
 document.documentElement.lang = lang

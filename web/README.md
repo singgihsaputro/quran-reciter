@@ -1,4 +1,4 @@
-# Recite Quest — web
+# Ayok Ngaji — web
 
 The app for Safari and Chrome on iPhone and Chrome on Android, with Google
 sign-in and saved progress. Static files in `public/`, API routes in `api/`,

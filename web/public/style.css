@@ -1,4 +1,4 @@
-/* Recite Quest — the Android app's look: a purple-to-sky day, a navy night. */
+/* Ayok Ngaji — the Android app's look: a purple-to-sky day, a navy night. */
 
 :root {
   --grape: #6A4CFF;
@@ -281,3 +281,10 @@ body.has-nav .dock { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 .support .card p { margin: 0; line-height: 1.5; }
 .support .rate { justify-items: start; }
 .privacy { color: rgba(255,255,255,.9); font-size: 13px; text-align: center; margin: 0 0 12px; }
+
+/* ── Install ──────────────────────────────────────────────────────────── */
+.hero-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hero-actions .unlock { margin-top: 0; }
+.unlock.install { background: #fff; color: var(--grape); }
+.steps { text-align: left; margin: 4px 0 0; padding-left: 22px; display: grid; gap: 6px; line-height: 1.45; }
+.btn.share { padding-left: 0; }

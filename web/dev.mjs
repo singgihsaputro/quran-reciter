@@ -39,4 +39,4 @@ createServer(async (req, res) => {
     console.error(err)
     res.writeHead(500).end()
   }
-}).listen(PORT, () => console.log(`Recite Quest on http://localhost:${PORT}`))
+}).listen(PORT, () => console.log(`Ayok Ngaji on http://localhost:${PORT}`))
