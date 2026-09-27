@@ -8,7 +8,7 @@ import { extname, join, normalize } from 'node:path'
 const PORT = Number(process.env.PORT ?? 3100)
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.png': 'image/png', '.webmanifest': 'application/manifest+json',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json',
 }
 
 createServer(async (req, res) => {

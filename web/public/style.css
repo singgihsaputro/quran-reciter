@@ -289,3 +289,9 @@ body.has-nav .dock { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 .unlock.install { background: #fff; color: var(--grape); }
 .steps { text-align: left; margin: 4px 0 0; padding-left: 22px; display: grid; gap: 6px; line-height: 1.45; }
 .btn.share { padding-left: 0; }
+
+/* ── QRIS ─────────────────────────────────────────────────────────────── */
+.qris { width: 100%; max-width: 300px; height: auto; border-radius: 16px; box-shadow: 0 4px 14px rgba(43,34,80,.15); }
+.sheet { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.about { text-align: center; color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; margin: -4px 0 16px; }
+.about a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }

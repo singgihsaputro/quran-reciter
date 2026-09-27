@@ -12,8 +12,8 @@ const $app = document.getElementById('app')
 const CANDY = ['#FF6F91', '#3DBE6C', '#FF9F1C', '#2EA8FF', '#9B7BFF', '#FF7F50']
 // Open to everyone; every other surah waits for a Google sign-in.
 const FREE = new Set([1, 112, 113, 114])
-// ponytail: placeholder until the Lynk page exists — swap in the real lynk.id link.
-const DONATION_URL = 'https://lynk.id/'
+// Ayok Ngaji's own QRIS: any Indonesian bank or e-wallet app can pay it.
+const QRIS = 'qris-ayok-ngaji.jpg'
 const DAY = 864e5
 
 // The app should feel like an app, not a page: no pinch zoom. Android honours
@@ -758,8 +758,19 @@ function donateCard() {
   return [
     h('h2', {}, s.donateTitle),
     h('p', {}, s.donateText),
-    h('a', { class: 'btn donate', href: DONATION_URL, target: '_blank', rel: 'noopener', onclick: () => track('donate_tap') }, s.donate),
+    h('button', { class: 'btn donate', onclick: showQris }, s.donate),
   ]
+}
+
+/** The QRIS, with a way to save it: the phone showing it can't also scan it. */
+function showQris() {
+  track('donate_tap')
+  openDialog(
+    h('h2', {}, s.qrisTitle),
+    h('img', { class: 'qris', src: QRIS, alt: 'QRIS Ayok Ngaji', width: 874, height: 1240 }),
+    h('p', { class: 'note' }, s.qrisHow),
+    h('a', { class: 'btn', href: QRIS, download: 'QRIS-Ayok-Ngaji.jpg' }, s.saveQr),
+    h('p', {}, s.qrisThanks))
 }
 
 /** From the second day of use, and at most once a week after that. */
@@ -783,7 +794,10 @@ function supportScreen() {
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
     h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
-    h('p', { class: 'privacy' }, s.privacy)))
+    h('p', { class: 'privacy' }, s.privacy),
+    h('footer', { class: 'about' },
+      h('span', {}, `${s.about} · ${s.madeBy} `),
+      h('a', { href: 'https://singgihsaputro.github.io', target: '_blank', rel: 'noopener' }, 'singgihsaputro.github.io'))))
   return () => {}
 }
 
