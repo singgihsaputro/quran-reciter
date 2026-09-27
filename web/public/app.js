@@ -16,6 +16,11 @@ const FREE = new Set([1, 112, 113, 114])
 const DONATION_URL = 'https://lynk.id/'
 const DAY = 864e5
 
+// The app should feel like an app, not a page: no pinch zoom. Android honours
+// the viewport meta; iPhones ignore it, so their pinch gesture is stopped here.
+for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, e => e.preventDefault())
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault() }, { passive: false })
+
 // ── Installing to the home screen ───────────────────────────────────────────
 // Android's Chrome offers a real install prompt; it arrives as an event we keep
 // for the moment the user taps our button. iPhones have no such API, so there
