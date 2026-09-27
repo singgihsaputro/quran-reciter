@@ -14,12 +14,28 @@ the last verse and language are saved to the account.
 |---|---|
 | `GET /api/config` | public settings (the Google client id) |
 | `POST /api/auth` | `{ credential }` from Google Identity Services → session cookie |
+| `POST /api/otp` | `{ email }` → emails a 6-digit code (1 a minute, 5 an hour) |
+| `PUT /api/otp` | `{ email, code }` → session cookie; the code works once, 10 minutes, 5 tries |
 | `DELETE /api/auth` | sign out |
 | `GET /api/me` | user, stars, last state |
 | `PUT /api/progress` | `{ stars, state }` — stars only ever go up |
 | `POST /api/rating` | `{ stars: 1..5, text? }` — signed in or not |
 | `POST /api/event` | `{ type: 'donate_tap' \| 'share' }` — counted for the dashboard |
 | `GET /api/analytics` | the owner's dashboard data — only for emails in `ADMIN_EMAILS` |
+
+## Email sign-in codes
+
+For families without a Google account. One email is one account, whichever way
+it signs in. Codes are stored only as a keyed hash.
+
+Codes are sent through [Brevo](https://www.brevo.com) (free, 300 a day, no
+domain needed): sign up, verify a sender address under *Senders*, create an
+API key, and set `BREVO_API_KEY`, `EMAIL_FROM` (that verified sender) and
+optionally `EMAIL_FROM_NAME` in Vercel. Change `EMAIL_FROM` any time. Locally,
+without a key, codes are printed to the `npm run dev` log.
+
+Stars are kept per account on each device, and separately for guests, so
+siblings sharing a phone never mix progress.
 
 ## Dashboard
 

@@ -1,6 +1,6 @@
 // POST: sign in with the ID token from Google Identity Services.
 // DELETE: sign out.
-import { body, clearedCookie, db, json, ready, sessionCookie, verifyGoogle } from './_lib.js'
+import { body, clearedCookie, json, ready, sessionCookie, signInByEmail, verifyGoogle } from './_lib.js'
 
 export async function POST(request) {
   const { credential } = await body(request)
@@ -12,18 +12,11 @@ export async function POST(request) {
     return json({ error: 'invalid credential' }, { status: 401 })
   }
   await ready()
-  const now = Date.now()
-  await db.execute({
-    sql: `INSERT INTO users (id, email, name, picture, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name,
-            picture = excluded.picture, last_seen = excluded.last_seen`,
-    args: [account.sub, account.email, account.name ?? null, account.picture ?? null, now, now],
+  // Same email as an account made with a code → the same account, same stars.
+  const { id, user } = await signInByEmail(account.email, {
+    googleId: account.sub, name: account.name ?? null, picture: account.picture ?? null,
   })
-  await db.execute({ sql: "INSERT INTO events (user_id, type, created_at) VALUES (?, 'login', ?)", args: [account.sub, now] })
-  return json(
-    { user: { email: account.email, name: account.name ?? null, picture: account.picture ?? null } },
-    { headers: { 'set-cookie': await sessionCookie(account.sub) } },
-  )
+  return json({ user }, { headers: { 'set-cookie': await sessionCookie(id) } })
 }
 
 export function DELETE() {

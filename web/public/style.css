@@ -295,3 +295,14 @@ body.has-nav .dock { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 .sheet { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .about { text-align: center; color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; margin: -4px 0 16px; }
 .about a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Email code sign-in ───────────────────────────────────────────────── */
+.email-signin { display: grid; gap: 8px; width: 100%; justify-items: stretch; }
+.support .email-signin { max-width: 360px; }
+.email-signin .or { color: var(--muted); font-size: 13px; font-weight: 800; text-align: center; margin: 4px 0 0; }
+.email-signin input {
+  width: 100%; border: 1px solid #E3E0EF; border-radius: 14px; padding: 12px 14px;
+  font: inherit; font-size: 16px; color: var(--ink); background: #fff;
+}
+.email-signin input.code { letter-spacing: 6px; text-align: center; font-size: 22px; font-weight: 800; }
+.email-signin input[hidden], .email-signin button[hidden] { display: none; }

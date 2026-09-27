@@ -1,6 +1,7 @@
 // Shared by the API routes. The leading underscore keeps Vercel from serving
 // this file as a route of its own.
 
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto'
 import { createClient } from '@libsql/client'
 import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose'
 
@@ -28,6 +29,12 @@ export function ready() {
     `CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, type TEXT NOT NULL, created_at INTEGER NOT NULL)`,
     'CREATE INDEX IF NOT EXISTS events_type_time ON events (type, created_at)',
+    // One account per email, whether it signs in with Google or a code.
+    'CREATE INDEX IF NOT EXISTS users_email ON users (lower(email))',
+    // Email sign-in codes: only a keyed hash is stored, one pending code per email.
+    `CREATE TABLE IF NOT EXISTS email_codes (
+      email TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires_at INTEGER NOT NULL, attempts INTEGER NOT NULL,
+      sent_at INTEGER NOT NULL, window_start INTEGER NOT NULL, window_count INTEGER NOT NULL)`,
   ], 'write')
   return schema
 }
@@ -76,6 +83,74 @@ export async function verifyGoogle(credential) {
   })
   if (!payload.email_verified) throw new Error('email not verified')
   return payload
+}
+
+/**
+ * Signs a user in by email: the existing account with that email (from Google
+ * or an earlier code) if there is one, otherwise a new one. Records the sign-in.
+ */
+export async function signInByEmail(email, { googleId = null, name = null, picture = null } = {}) {
+  const now = Date.now()
+  const { rows } = await db.execute({ sql: 'SELECT id FROM users WHERE lower(email) = lower(?) LIMIT 1', args: [email] })
+  const id = rows[0]?.id ?? googleId ?? `email:${email.toLowerCase()}`
+  await db.batch([
+    {
+      sql: `INSERT INTO users (id, email, name, picture, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET name = COALESCE(excluded.name, name),
+              picture = COALESCE(excluded.picture, picture), last_seen = excluded.last_seen`,
+      args: [id, email, name, picture, now, now],
+    },
+    { sql: "INSERT INTO events (user_id, type, created_at) VALUES (?, 'login', ?)", args: [id, now] },
+  ], 'write')
+  const user = (await db.execute({ sql: 'SELECT email, name, picture FROM users WHERE id = ?', args: [id] })).rows[0]
+  return { id, user: { email: user.email, name: user.name ?? null, picture: user.picture ?? null } }
+}
+
+// ── Email codes ─────────────────────────────────────────────────────────────
+
+export const newCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
+
+/** A keyed hash, so a leaked table reveals no codes. */
+export const hashCode = (email, code) =>
+  createHmac('sha256', secret()).update(`${email.toLowerCase()}:${code}`).digest('hex')
+
+export function sameHash(a, b) {
+  const x = Buffer.from(a, 'hex')
+  const y = Buffer.from(b, 'hex')
+  return x.length === y.length && timingSafeEqual(x, y)
+}
+
+/**
+ * Sends the code. Brevo in production (BREVO_API_KEY, EMAIL_FROM); without a
+ * key outside production, the code is printed to the server log for testing.
+ * Tests replace `mailer.send`.
+ */
+export const mailer = {
+  async send(to, code) {
+    const key = process.env.BREVO_API_KEY
+    if (!key || !process.env.EMAIL_FROM) {
+      if (process.env.VERCEL_ENV === 'production') throw new Error('email is not configured')
+      console.log(`[dev] sign-in code for ${to}: ${code}`)
+      return
+    }
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': key, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        sender: { email: process.env.EMAIL_FROM, name: process.env.EMAIL_FROM_NAME || 'Ayok Ngaji' },
+        to: [{ email: to }],
+        subject: `Kode masuk Ayok Ngaji: ${code}`,
+        textContent: `Kode masuk Ayok Ngaji kamu: ${code}\nBerlaku 10 menit. Jangan berikan kode ini kepada siapa pun.\n\nYour Ayok Ngaji sign-in code: ${code}\nIt works for 10 minutes. Don't share it with anyone.`,
+        htmlContent: `<div style="font-family:system-ui,sans-serif;max-width:420px;margin:auto;color:#2B2250">
+          <h2 style="color:#6A4CFF">Ayok Ngaji 🌙</h2>
+          <p>Kode masuk kamu / Your sign-in code:</p>
+          <p style="font-size:32px;font-weight:800;letter-spacing:8px;margin:12px 0">${code}</p>
+          <p style="color:#6B6690">Berlaku 10 menit. Jangan berikan kode ini kepada siapa pun.<br>Works for 10 minutes. Don't share it with anyone.</p>
+        </div>`,
+      }),
+    })
+    if (!res.ok) throw new Error(`brevo ${res.status}`)
+  },
 }
 
 /** Whether this user id belongs to an email in ADMIN_EMAILS (comma-separated). */

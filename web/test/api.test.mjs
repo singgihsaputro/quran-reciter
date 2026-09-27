@@ -8,13 +8,14 @@ process.env.TURSO_DATABASE_URL = ':memory:'
 process.env.GOOGLE_CLIENT_ID = 'test-client'
 process.env.SESSION_SECRET = 'test-secret-that-is-long-enough-for-hs256'
 
-const { google } = await import('../api/_lib.js')
+const { google, mailer } = await import('../api/_lib.js')
 const auth = await import('../api/auth.js')
 const me = await import('../api/me.js')
 const progress = await import('../api/progress.js')
 const rating = await import('../api/rating.js')
 const event = await import('../api/event.js')
 const analytics = await import('../api/analytics.js')
+const otp = await import('../api/otp.js')
 
 const { publicKey, privateKey } = await generateKeyPair('RS256')
 google.keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k', alg: 'RS256' }] })
@@ -82,4 +83,50 @@ test('only an admin can open the dashboard', async () => {
   assert.equal(data.taps.find(t => t.type === 'donate_tap').email, 'parent@example.com')
   assert.equal(data.taps.find(t => t.type === 'share').email, null) // a guest
   assert.ok(data.ratings.length >= 1)
+})
+
+test('email code: send, wrong tries, sign in once, same account as Google', async () => {
+  const sent = []
+  mailer.send = async (to, code) => { sent.push({ to, code }) }
+
+  assert.equal((await otp.POST(req('POST', { email: 'not-an-email' }))).status, 400)
+  assert.equal((await otp.POST(req('POST', { email: ' Kid@Example.com ' }))).status, 200)
+  assert.equal(sent.at(-1).to, 'kid@example.com')
+  assert.match(sent.at(-1).code, /^\d{6}$/)
+  assert.equal((await otp.POST(req('POST', { email: 'kid@example.com' }))).status, 429) // one a minute
+
+  const code = sent.at(-1).code
+  const wrong = code === '000000' ? '111111' : '000000'
+  const miss = await otp.PUT(req('PUT', { email: 'kid@example.com', code: wrong }))
+  assert.equal(miss.status, 400)
+  assert.equal((await miss.json()).left, 4)
+
+  const ok = await otp.PUT(req('PUT', { email: 'KID@example.com', code }))
+  assert.equal(ok.status, 200)
+  const cookie = ok.headers.get('set-cookie').split(';')[0]
+  // kid@example.com signed in with Google earlier (google-123), with 1:1 ★2 and 112:1 ★3
+  const data = await (await me.GET(req('GET', null, cookie))).json()
+  assert.equal(data.user.email, 'kid@example.com')
+  assert.deepEqual(data.stars, { '1:1': 2, '112:1': 3 })
+
+  assert.equal((await otp.PUT(req('PUT', { email: 'kid@example.com', code }))).status, 410) // used once
+})
+
+test('email code: a new address gets its own empty account', async () => {
+  const sent = []
+  mailer.send = async (to, code) => { sent.push(code) }
+  await otp.POST(req('POST', { email: 'sibling@example.com' }))
+  const res = await otp.PUT(req('PUT', { email: 'sibling@example.com', code: sent[0] }))
+  const data = await (await me.GET(req('GET', null, res.headers.get('set-cookie').split(';')[0]))).json()
+  assert.equal(data.user.email, 'sibling@example.com')
+  assert.deepEqual(data.stars, {})
+})
+
+test('email code: five wrong tries burn the code', async () => {
+  const sent = []
+  mailer.send = async (to, code) => { sent.push(code) }
+  await otp.POST(req('POST', { email: 'guess@example.com' }))
+  const wrong = sent[0] === '000000' ? '111111' : '000000'
+  for (let i = 0; i < 5; i++) await otp.PUT(req('PUT', { email: 'guess@example.com', code: wrong }))
+  assert.equal((await otp.PUT(req('PUT', { email: 'guess@example.com', code: sent[0] }))).status, 429)
 })

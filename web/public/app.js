@@ -42,22 +42,32 @@ const store = {
 
 let lang = store.get('lang', (navigator.language ?? '').toLowerCase().startsWith('id') ? 'id' : 'en')
 let s = languages[lang]
-const best = store.get('stars', {})
+// Progress lives per account on this device, and separately for guests, so
+// siblings sharing a phone never mix their stars. Older versions kept one
+// shared 'stars'; that becomes the guest's.
+let owner = 'guest'
+const keyFor = name => `${name}:${owner}`
+let best = store.get('stars:guest', null) ?? store.get('stars', {})
+function useAccount(email) {
+  owner = email ?? 'guest'
+  best = store.get(keyFor('stars'), {})
+  last = store.get(keyFor('last'), null)
+}
 const starsOf = (surah, verse) => best[`${surah}:${verse}`] ?? 0
 const surahStars = surah => surah.verses.reduce((n, v) => n + starsOf(surah.number, v.number), 0)
 function record(surah, verse, stars) {
   const key = `${surah}:${verse}`
   if (stars <= (best[key] ?? 0)) return // a worse try never takes stars away
   best[key] = stars
-  store.set('stars', best)
+  store.set(keyFor('stars'), best)
   queueSync({ [key]: stars })
 }
 
 // Where the child left off, so the home screen can offer to carry on.
-let last = store.get('last', null)
+let last = store.get('last:guest', null) ?? store.get('last', null)
 function saveLast(surah, verse, whole) {
   last = { surah, verse, whole }
-  store.set('last', last)
+  store.set(keyFor('last'), last)
   queueSync(null, true)
 }
 
@@ -106,14 +116,15 @@ async function flush(keepalive = false) {
 }
 addEventListener('pagehide', () => flush(true))
 
-/** Takes on what the account holds: the best stars of both, and its last verse. */
+/** Switches to this account's own progress: what the server holds, plus anything this device saved for it offline. */
 function adopt(data) {
   user = data.user
+  useAccount(user.email.toLowerCase())
   for (const [key, n] of Object.entries(data.stars ?? {})) if (n > (best[key] ?? 0)) best[key] = n
-  store.set('stars', best)
+  store.set(keyFor('stars'), best)
   if (data.state?.surah) {
     last = { surah: data.state.surah, verse: data.state.verse ?? 1, whole: !!data.state.whole }
-    store.set('last', last)
+    store.set(keyFor('last'), last)
     if (data.state.lang && data.state.lang !== lang) setLanguage(data.state.lang)
   }
   queueSync(best, !!last) // anything only this device had goes up
@@ -700,7 +711,58 @@ async function signOut() {
   try { await api('DELETE', '/api/auth') } catch { /* the cookie expires on its own */ }
   window.google?.accounts.id.disableAutoSelect()
   user = null
+  useAccount(null) // back to the guest's own progress
   route()
+}
+
+/** Email, then a 6-digit code: sign-in for families without a Google account. */
+function emailSignIn() {
+  const email = h('input', { type: 'email', autocomplete: 'email', inputmode: 'email', placeholder: s.emailPlaceholder, 'aria-label': s.emailPlaceholder })
+  const code = h('input', {
+    class: 'code', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, pattern: '[0-9]*',
+    placeholder: s.codePlaceholder, 'aria-label': s.codePlaceholder, hidden: true,
+  })
+  const go = h('button', { class: 'btn', onclick: () => (code.hidden ? send() : verify()) }, s.sendCode)
+  const again = h('button', { class: 'btn ghost', hidden: true, onclick: send }, s.newCode)
+  const other = h('button', { class: 'btn ghost', hidden: true, onclick: () => step(false) }, s.otherEmail)
+  const note = h('p', { class: 'note', 'aria-live': 'polite' })
+
+  const call = async (method, data) => {
+    const res = await fetch('/api/otp', { method, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) })
+    return { status: res.status, data: await res.json().catch(() => ({})) }
+  }
+  function step(codeStep) {
+    code.hidden = again.hidden = other.hidden = !codeStep
+    email.hidden = codeStep
+    go.textContent = codeStep ? s.verifyCode : s.sendCode
+    if (codeStep) code.focus()
+    else { note.textContent = ''; email.focus() }
+  }
+  async function send() {
+    go.disabled = again.disabled = true
+    try {
+      const { status, data } = await call('POST', { email: email.value })
+      if (status === 200) { step(true); code.value = ''; note.textContent = s.codeSent(email.value.trim()) }
+      else note.textContent = data.error === 'wait' ? s.waitCode(data.retryIn) : data.error === 'bad_email' ? s.badEmail : s.emailUnavailable
+    } catch { note.textContent = s.emailUnavailable }
+    go.disabled = again.disabled = false
+  }
+  async function verify() {
+    go.disabled = true
+    try {
+      const { status, data } = await call('PUT', { email: email.value, code: code.value })
+      if (status === 200) {
+        adopt(await api('GET', '/api/me'))
+        if (dialog.open) dialog.close()
+        return route()
+      }
+      note.textContent = data.error === 'expired' ? s.codeExpired : s.wrongCode(data.error === 'too_many' ? 0 : data.left)
+    } catch { note.textContent = s.signInFailed }
+    go.disabled = false
+  }
+  code.addEventListener('input', () => { if (code.value.replace(/\D/g, '').length === 6) verify() })
+  email.addEventListener('keydown', e => { if (e.key === 'Enter') send() })
+  return h('div', { class: 'email-signin' }, h('p', { class: 'or' }, s.orEmail), email, code, go, again, other, note)
 }
 
 function openSignIn() {
@@ -709,6 +771,7 @@ function openSignIn() {
     h('h2', {}, s.lockedTitle),
     h('p', {}, s.lockedText),
     googleButton(),
+    emailSignIn(),
     h('p', { class: 'note' }, s.grownUp))
 }
 
@@ -789,7 +852,7 @@ function supportScreen() {
       h('button', { class: 'pill', 'aria-label': s.switchLanguage, onclick: switchLanguage }, `${s.flag} ${s.code}`))),
     h('section', { class: 'card' }, h('h2', {}, s.account), user
       ? [h('p', {}, s.signedInAs(user.email)), h('p', { class: 'note' }, s.syncNote), h('button', { class: 'btn ghost', onclick: signOut }, s.signOut)]
-      : [h('p', {}, s.guestNote), googleButton(), h('p', { class: 'note' }, s.grownUp)]),
+      : [h('p', {}, s.guestNote), googleButton(), emailSignIn(), h('p', { class: 'note' }, s.grownUp)]),
     h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm()),
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
