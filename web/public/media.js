@@ -116,8 +116,9 @@ document.addEventListener('pointerdown', () => {
   if (!player.src) { player.src = SILENCE; player.play().catch(() => {}) }
 }, true)
 
+// EveryAyah's files, from Quran.com's mirror (everyayah.com itself went down in Sept 2026).
 export const verseUrl = (surah, verse) =>
-  `https://everyayah.com/data/Husary_Muallim_128kbps/${String(surah).padStart(3, '0')}${String(verse).padStart(3, '0')}.mp3`
+  `https://mirrors.quranicaudio.com/everyayah/Husary_Muallim_128kbps/${String(surah).padStart(3, '0')}${String(verse).padStart(3, '0')}.mp3`
 export const wordUrl = path => `https://audio.qurancdn.com/${path}`
 
 export const qari = {
