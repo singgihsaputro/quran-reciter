@@ -109,3 +109,23 @@ test('page views and recitation grades reach the dashboard', async () => {
   assert.equal(data.recitations[0].mode, 'verse')
   assert.ok(data.pages.some(p => p.page === 'home'))
 })
+
+test('redirect sign-in (iPhone home-screen app): CSRF checked, then back to the app', async () => {
+  const form = (credential, token, cookieToken) => new Request('http://localhost/api/auth', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: `g_csrf_token=${cookieToken}` },
+    body: new URLSearchParams({ credential, g_csrf_token: token }).toString(),
+  })
+  const good = await idToken({ email: 'ios@example.com' }, 'test-client', 'google-ios')
+
+  const forged = await auth.POST(form(good, 'abc', 'xyz'))
+  assert.equal(forged.status, 303)
+  assert.equal(forged.headers.get('location'), '/#/support')
+  assert.equal(forged.headers.get('set-cookie'), null)
+
+  const ok = await auth.POST(form(good, 'same-token', 'same-token'))
+  assert.equal(ok.status, 303)
+  assert.equal(ok.headers.get('location'), '/#/')
+  const cookie = ok.headers.get('set-cookie').split(';')[0]
+  assert.equal((await (await me.GET(req('GET', null, cookie))).json()).user.email, 'ios@example.com')
+})

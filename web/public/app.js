@@ -700,7 +700,12 @@ function loadGoogle() {
   gis ??= new Promise((resolve, reject) => {
     const script = h('script', { src: 'https://accounts.google.com/gsi/client', async: true })
     script.onload = () => {
-      google.accounts.id.initialize({ client_id: clientId, callback: signedIn, ux_mode: 'popup', auto_select: false })
+      // On an iPhone home screen the popup opens in Safari and can't report back,
+      // so there Google redirects to /api/auth, which signs in and returns to the app.
+      const homeScreenApp = iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)
+      google.accounts.id.initialize(homeScreenApp
+        ? { client_id: clientId, ux_mode: 'redirect', login_uri: `${location.origin}/api/auth`, auto_select: false }
+        : { client_id: clientId, callback: signedIn, ux_mode: 'popup', auto_select: false })
       resolve()
     }
     script.onerror = () => { gis = null; reject(new Error('gsi')) }
