@@ -19,5 +19,5 @@ test('the service worker saves every file the app starts with', () => {
   needed.delete('index.html') // saved as '/'
   const missing = [...needed].filter(file => !core.has(file))
   assert.deepEqual(missing, [])
-  assert.ok(core.has('') && core.has('500.html') && core.has('qris-ayok-ngaji.jpg'))
+  assert.ok(core.has('') && core.has('500') && core.has('qris-ayok-ngaji.jpg'))
 })

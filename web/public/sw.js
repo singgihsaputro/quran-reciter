@@ -7,7 +7,7 @@ const CACHE = 'ayok-ngaji'
 // is ever down, e.g. paused for going over the free hosting quota.
 const CORE = ['/', '/app.js', '/matcher.js', '/media.js', '/strings.js', '/sfx.js', '/style.css', '/quran.json',
   '/stories.json', '/story_verses.json', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png',
-  '/qris-ayok-ngaji.jpg', '/500.html']
+  '/qris-ayok-ngaji.jpg', '/500']
 
 self.addEventListener('install', event => {
   self.skipWaiting()
@@ -21,7 +21,7 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 async function saved(request) {
   const hit = await caches.match(request, { ignoreSearch: true })
   if (hit) return hit
-  if (request.mode === 'navigate') return (await caches.match('/')) ?? (await caches.match('/500.html')) ?? Response.error()
+  if (request.mode === 'navigate') return (await caches.match('/')) ?? (await caches.match('/500')) ?? Response.error()
   return Response.error()
 }
 
