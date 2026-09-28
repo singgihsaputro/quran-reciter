@@ -12,8 +12,9 @@ the last verse and language are saved to the account.
 
 | Route | |
 |---|---|
-| `GET /api/config` | public settings (the Google client id) |
-| `POST /api/auth` | `{ credential }` from Google Identity Services → session cookie |
+| `GET /api/config` | public settings (the Google client id, the push public key) |
+| `POST /api/auth` | `{ credential }` from Google Identity Services → session cookie; or Google's form post ending the iPhone home-screen sign-in in Safari |
+| `POST /api/handoff` | `{ id }` — the home-screen app picks up that sign-in with its one-time code |
 | `DELETE /api/auth` | sign out |
 | `GET /api/me` | user, stars, last state |
 | `PUT /api/progress` | `{ stars, state }` — stars only ever go up |
@@ -21,6 +22,15 @@ the last verse and language are saved to the account.
 | `POST /api/event` | `{ type: 'donate_tap' \| 'share' }` — counted for the dashboard |
 | `POST /api/track` | page views and recitation grades (`view` / `recite`), with an anonymous device id |
 | `GET /api/analytics` | the owner's dashboard data — only for emails in `ADMIN_EMAILS` |
+| `POST /api/push` / `DELETE /api/push` | daily reminder on (sent again on every open) / off |
+| `GET /api/remind` | Vercel Cron, 18:00 WIB: one push to each browser away for a day — needs `CRON_SECRET` |
+
+## Daily reminder
+
+Web Push, turned on from the Support tab (on iPhone only in the home-screen
+app, iOS 16.4+). Each evening the cron nudges browsers that haven't opened the
+app for about a day — once per absence. Needs `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY` and `CRON_SECRET` in Vercel (see `.env.example`).
 
 ## Progress per account
 

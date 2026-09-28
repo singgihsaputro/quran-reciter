@@ -33,6 +33,8 @@ const installed = () => matchMedia('(display-mode: standalone)').matches || navi
 const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 // Opened from the iPhone home screen, where Google sign-in can't finish (see safariSignIn).
 const homeScreenApp = iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)
+// Web Push works in browsers, but on an iPhone only in the home-screen app.
+const canRemind = 'PushManager' in window && 'Notification' in window && 'serviceWorker' in navigator && (!iphone || homeScreenApp)
 const canInstall = () => !installed() && (!!installPrompt || iphone)
 // Keeps the app opening on a poor connection, and lets Chrome treat it as installable.
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
@@ -91,6 +93,7 @@ store.set('firstSeen', firstSeen)
 
 let user = null
 let clientId = null
+let vapidKey = null
 const locked = number => !user && !FREE.has(number)
 
 async function api(method, path, data, keepalive = false) {
@@ -171,6 +174,7 @@ try {
     ['quran.json', 'stories.json', 'story_verses.json'].map(f => fetch(f).then(r => { if (!r.ok) throw new Error(f); return r.json() })))
   const [config, me] = await account
   clientId = config.googleClientId ?? null
+  vapidKey = config.vapidPublicKey ?? null
   if (me.user) adopt(me)
 } catch {
   $app.replaceChildren(h('p', { class: 'fatal' }, 'Could not load the Qur\'an text. Check the internet and reload.'))
@@ -812,6 +816,63 @@ function openSignIn() {
     h('p', { class: 'note' }, s.grownUp))
 }
 
+// ── Daily reminder: a notification in the evening after a day away (api/remind.js) ─
+
+async function reminderSub() {
+  if (!canRemind || Notification.permission !== 'granted') return null
+  return (await navigator.serviceWorker.ready).pushManager.getSubscription()
+}
+
+// Tells the server the app is open (and in which language), so tonight's
+// reminder skips this phone. At most hourly.
+let lastSeen = 0
+function seen() {
+  if (Date.now() - lastSeen < 3600e3) return
+  lastSeen = Date.now()
+  reminderSub().then(sub => sub && api('POST', '/api/push', { subscription: sub.toJSON(), lang })).catch(() => {})
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) seen() })
+
+/** The on/off switch in the Support tab. */
+function reminderSwitch() {
+  const button = h('button', { class: 'btn', onclick: toggle })
+  const status = h('p', { class: 'note', 'aria-live': 'polite' })
+  let on = false
+  const show = (note = on ? s.remindIsOn : '') => {
+    button.textContent = on ? s.remindOff : s.remindOn
+    button.className = on ? 'btn ghost' : 'btn'
+    status.textContent = note
+  }
+  async function toggle() {
+    button.disabled = true
+    try {
+      if (on) {
+        const sub = await reminderSub()
+        if (sub) {
+          await api('DELETE', '/api/push', { endpoint: sub.endpoint }).catch(() => {})
+          await sub.unsubscribe()
+        }
+        on = false
+        show()
+      } else if (await Notification.requestPermission() !== 'granted') {
+        show(s.remindBlocked)
+      } else {
+        const key = Uint8Array.from(atob(vapidKey.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+        const sub = await (await navigator.serviceWorker.ready).pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+        await api('POST', '/api/push', { subscription: sub.toJSON(), lang })
+        on = true
+        show()
+      }
+    } catch {
+      show(s.remindFailed)
+    }
+    button.disabled = false
+  }
+  show()
+  reminderSub().then(sub => { on = !!sub; show() }).catch(() => {})
+  return h('div', {}, button, status)
+}
+
 /** 1–5 stars and an optional note, sent to /api/rating. */
 function ratingForm(onSent) {
   let chosen = 0
@@ -903,6 +964,7 @@ function supportScreen() {
     h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm(stars => { if (stars >= 4) setTimeout(askSupport, 1400) })),
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
+    canRemind && vapidKey ? h('section', { class: 'card' }, h('h2', {}, s.remindTitle), h('p', {}, s.remindText), reminderSwitch()) : null,
     h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
     h('button', {
       class: 'pill sound', 'aria-pressed': String(sfx.on),
@@ -978,3 +1040,4 @@ async function share() {
 document.documentElement.lang = lang
 route()
 if (!user && store.get('handoff')) awaitHandoff() // back from signing in in Safari
+seen()

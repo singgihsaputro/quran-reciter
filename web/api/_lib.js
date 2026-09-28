@@ -37,6 +37,9 @@ export function ready() {
     'CREATE INDEX IF NOT EXISTS activity_type_time ON activity (type, created_at)',
     // One-time codes for signing the iPhone home-screen app in via Safari (see auth.js).
     'CREATE TABLE IF NOT EXISTS handoffs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL)',
+    // Browsers with the daily reminder on (api/push.js), and when each last opened the app.
+    `CREATE TABLE IF NOT EXISTS push (
+      endpoint TEXT PRIMARY KEY, sub TEXT NOT NULL, lang TEXT NOT NULL, last_open INTEGER NOT NULL, last_sent INTEGER)`,
   ], 'write')
   return schema
 }

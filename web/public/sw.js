@@ -21,3 +21,22 @@ self.addEventListener('fetch', event => {
       .catch(() => caches.match(event.request).then(hit => hit ?? Response.error())),
   )
 })
+
+// The daily reminder (api/remind.js). iPhones drop the subscription unless
+// every push shows a notification, so this always shows one.
+self.addEventListener('push', event => {
+  let message = {}
+  try { message = event.data?.json() ?? {} } catch { /* not JSON: use the default */ }
+  event.waitUntil(self.registration.showNotification(message.title ?? 'Ayok Ngaji', {
+    body: message.body ?? '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: 'reminder', // a new one replaces the last instead of piling up
+  }))
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(open => open[0]?.focus() ?? self.clients.openWindow('/')))
+})

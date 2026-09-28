@@ -7,6 +7,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 process.env.TURSO_DATABASE_URL = ':memory:'
 process.env.GOOGLE_CLIENT_ID = 'test-client'
 process.env.SESSION_SECRET = 'test-secret-that-is-long-enough-for-hs256'
+process.env.CRON_SECRET = 'test-cron'
 
 const { google } = await import('../api/_lib.js')
 const auth = await import('../api/auth.js')
@@ -140,4 +141,35 @@ test('iPhone home-screen app: Google signs in in Safari, the app picks the sessi
   assert.equal((await (await me.GET(req('GET', null, cookie))).json()).user.email, 'ios@example.com')
 
   assert.equal((await (await pick(code)).json()).user, null) // single use
+})
+
+test('daily reminder: only browsers away for a day, once per absence', async () => {
+  const push = await import('../api/push.js')
+  const remind = await import('../api/remind.js')
+  const { db } = await import('../api/_lib.js')
+  const sub = n => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${n}`, keys: { p256dh: 'p', auth: 'a' } })
+  const cron = (secret = 'test-cron') => remind.GET(new Request('http://localhost/api/remind', { headers: { authorization: `Bearer ${secret}` } }))
+
+  assert.equal((await push.POST(req('POST', { subscription: { ...sub('x'), endpoint: 'https://evil.example/x' } }))).status, 400)
+  for (const n of ['away', 'here', 'gone']) assert.equal((await push.POST(req('POST', { subscription: sub(n), lang: 'en' }))).status, 200)
+  await db.execute({ sql: "UPDATE push SET last_open = ? WHERE endpoint LIKE '%away' OR endpoint LIKE '%gone'", args: [Date.now() - 25 * 3600e3] })
+
+  const sent = []
+  remind.push.send = async (s, payload) => {
+    if (s.endpoint.endsWith('gone')) throw Object.assign(new Error('gone'), { statusCode: 410 })
+    sent.push([s.endpoint.split('/').pop(), JSON.parse(payload)])
+  }
+  assert.equal((await cron('wrong')).status, 401)
+  assert.deepEqual(await (await cron()).json(), { sent: 1, removed: 1, failed: 0 })
+  assert.equal(sent[0][0], 'away')
+  assert.ok(sent[0][1].title && sent[0][1].body)
+  assert.deepEqual(await (await cron()).json(), { sent: 0, removed: 0, failed: 0 }) // once per absence
+
+  // Opening the app again, then staying away another day, earns one more.
+  await db.execute({ sql: "UPDATE push SET last_sent = ? WHERE endpoint LIKE '%away'", args: [Date.now() - 45 * 3600e3] })
+  await db.execute({ sql: "UPDATE push SET last_open = ? WHERE endpoint LIKE '%away'", args: [Date.now() - 21 * 3600e3] })
+  assert.equal((await (await cron()).json()).sent, 1)
+
+  assert.equal((await push.DELETE(req('DELETE', { endpoint: sub('away').endpoint }))).status, 200)
+  assert.equal((await db.execute('SELECT count(*) AS n FROM push')).rows[0].n, 1) // just 'here'
 })
