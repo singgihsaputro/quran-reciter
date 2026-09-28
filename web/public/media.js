@@ -111,10 +111,34 @@ const player = new Audio()
 const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
 let unlocked = false
 document.addEventListener('pointerdown', () => {
+  if (boost && boost.ctx.state !== 'running') boost.ctx.resume().catch(() => {}) // iOS pauses it in the background
   if (unlocked) return
   unlocked = true
+  louder()
   if (!player.src) { player.src = SILENCE; player.play().catch(() => {}) }
 }, true)
+
+// Husary Muallim is recorded quietly — about 7 dB under other qaris and the
+// word audio — and an <audio> can't go past full volume. So the player runs
+// through Web Audio: verses get a boost, with a limiter so peaks don't crackle.
+// Both audio hosts send CORS headers, which Web Audio needs to hear them.
+const VERSE_BOOST = 2.5 // ≈ +8 dB
+let boost = null
+function louder() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const gain = ctx.createGain()
+    const limiter = ctx.createDynamicsCompressor()
+    limiter.threshold.value = -3
+    limiter.knee.value = 0
+    limiter.ratio.value = 20
+    limiter.attack.value = 0.003
+    limiter.release.value = 0.25
+    player.crossOrigin = 'anonymous'
+    ctx.createMediaElementSource(player).connect(gain).connect(limiter).connect(ctx.destination)
+    boost = { ctx, gain }
+  } catch { /* no Web Audio: plays at normal volume */ }
+}
 
 // EveryAyah's files, from Quran.com's mirror (everyayah.com itself went down in Sept 2026).
 export const verseUrl = (surah, verse) =>
@@ -130,6 +154,10 @@ export const qari = {
   play(url) {
     this.failed = false
     this.playing = url
+    if (boost) {
+      boost.gain.gain.value = url.includes('/everyayah/') ? VERSE_BOOST : 1
+      if (boost.ctx.state !== 'running') boost.ctx.resume().catch(() => {})
+    }
     player.src = url
     // AbortError only means another play() replaced this one.
     player.play().catch(e => { if (e.name !== 'AbortError') this.fail() })
