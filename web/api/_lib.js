@@ -35,9 +35,15 @@ export function ready() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, device TEXT, type TEXT NOT NULL,
       page TEXT, surah INTEGER, verse INTEGER, mode TEXT, score INTEGER, stars INTEGER, created_at INTEGER NOT NULL)`,
     'CREATE INDEX IF NOT EXISTS activity_type_time ON activity (type, created_at)',
+    // One-time codes for signing the iPhone home-screen app in via Safari (see auth.js).
+    'CREATE TABLE IF NOT EXISTS handoffs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL)',
   ], 'write')
   return schema
 }
+
+/** A handoff code: a random UUID made by the app. They live ten minutes. */
+export const HANDOFF = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+export const HANDOFF_TTL = 10 * 60 * 1000
 
 // ── Session: a signed cookie holding only the Google account id ─────────────
 

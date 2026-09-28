@@ -31,6 +31,8 @@ addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt
 addEventListener('appinstalled', () => { installPrompt = null; store.set('installed', true) })
 const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true || store.get('installed', false)
 const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+// Opened from the iPhone home screen, where Google sign-in can't finish (see safariSignIn).
+const homeScreenApp = iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)
 const canInstall = () => !installed() && (!!installPrompt || iphone)
 // Keeps the app opening on a poor connection, and lets Chrome treat it as installable.
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
@@ -192,6 +194,7 @@ function route() {
   leave()
   leave = () => {}
   const [, page, arg, extra] = location.hash.split('/')
+  handoff = page === 'signin' ? arg : null
   const surah = page === 'surah' ? quran.find(x => x.number === Number(arg)) ?? quran[0] : null
   if (surah && locked(surah.number)) {
     location.replace('#/')
@@ -203,6 +206,7 @@ function route() {
   if (surah) leave = reciteScreen(surah, Number(extra) || 1, extra === 'all')
   else if (page === 'story') leave = storyScreen(Number(arg) || 0)
   else if (page === 'support') leave = supportScreen()
+  else if (page === 'signin') leave = handoffScreen(arg)
   else leave = homeScreen()
   usage({
     type: 'view',
@@ -700,12 +704,7 @@ function loadGoogle() {
   gis ??= new Promise((resolve, reject) => {
     const script = h('script', { src: 'https://accounts.google.com/gsi/client', async: true })
     script.onload = () => {
-      // On an iPhone home screen the popup opens in Safari and can't report back,
-      // so there Google redirects to /api/auth, which signs in and returns to the app.
-      const homeScreenApp = iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)
-      google.accounts.id.initialize(homeScreenApp
-        ? { client_id: clientId, ux_mode: 'redirect', login_uri: `${location.origin}/api/auth`, auto_select: false }
-        : { client_id: clientId, callback: signedIn, ux_mode: 'popup', auto_select: false })
+      google.accounts.id.initialize({ client_id: clientId, callback: signedIn, ux_mode: 'popup', auto_select: false })
       resolve()
     }
     script.onerror = () => { gis = null; reject(new Error('gsi')) }
@@ -718,17 +717,68 @@ function loadGoogle() {
 function googleButton() {
   const slot = h('div', { class: 'gsi' })
   if (!clientId) return h('p', { class: 'note' }, s.signInUnavailable)
+  if (homeScreenApp) return safariSignIn()
   loadGoogle()
     .then(() => google.accounts.id.renderButton(slot, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: lang }))
     .catch(() => slot.replaceChildren(h('p', { class: 'note' }, s.signInFailed)))
   return slot
 }
 
+/**
+ * On an iPhone home screen, Google's popup opens in Safari and can never report
+ * back, and Google refuses to sign in inside the home-screen app itself. So the
+ * child signs in on a Safari page (handoffScreen) carrying a random code, and
+ * this app trades that code for the session once they come back.
+ */
+function safariSignIn() {
+  const status = h('p', { class: 'note', 'aria-live': 'polite' })
+  let timer
+  const button = h('button', {
+    class: 'btn',
+    onclick() {
+      const code = crypto.randomUUID()
+      window.open(`${location.origin}/#/signin/${code}`, '_blank')
+      status.textContent = s.finishInSafari
+      clearInterval(timer)
+      const until = Date.now() + 10 * 60 * 1000
+      timer = setInterval(async () => {
+        if (!button.isConnected || Date.now() > until) return clearInterval(timer)
+        if (document.hidden) return
+        try {
+          const data = await api('POST', '/api/handoff', { id: code })
+          if (data.user) { clearInterval(timer); welcome(data) }
+        } catch { /* offline for a moment: try again next tick */ }
+      }, 2000)
+    },
+  }, s.signInGoogle)
+  return h('div', { class: 'gsi' }, button, status)
+}
+
+// The code in #/signin/<code>, while that Safari page is open; handedOff once used.
+let handoff = null
+let handedOff = null
+
+/** The Safari page the home-screen app opens: sign in here, then go back to the app. */
+function handoffScreen(code) {
+  $app.replaceChildren(h('main', { class: 'support' },
+    h('header', { class: 'hero' }, h('div', { class: 'hero-row' }, h('h1', {}, s.handoffTitle))),
+    h('section', { class: 'card' }, handedOff === code
+      ? h('p', {}, s.handoffDone)
+      : [h('p', {}, s.handoffText), googleButton()])))
+  return () => {}
+}
+
+function welcome(data) {
+  adopt(data)
+  if (dialog.open) dialog.close()
+  route()
+}
+
 async function signedIn({ credential }) {
   try {
-    adopt(await api('POST', '/api/auth', { credential }))
-    if (dialog.open) dialog.close()
-    route()
+    const data = await api('POST', '/api/auth', { credential, handoff })
+    handedOff = handoff
+    welcome(data)
   } catch {
     openDialog(h('p', {}, s.signInFailed))
   }
