@@ -36,7 +36,7 @@ export async function GET(request) {
   })
   const options = {
     TTL: 12 * 3600,
-    vapidDetails: { subject: 'https://ayokngaji.vercel.app', publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY },
+    vapidDetails: { subject: 'https://ayokngaji.my.id', publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY },
   }
   const day = Math.floor(now / 864e5)
   // ponytail: one parallel burst; batch it if the list outgrows the function's time limit.
