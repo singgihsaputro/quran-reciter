@@ -15,6 +15,7 @@ const progress = await import('../api/progress.js')
 const rating = await import('../api/rating.js')
 const event = await import('../api/event.js')
 const analytics = await import('../api/analytics.js')
+const track = await import('../api/track.js')
 
 const { publicKey, privateKey } = await generateKeyPair('RS256')
 google.keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k', alg: 'RS256' }] })
@@ -84,3 +85,27 @@ test('only an admin can open the dashboard', async () => {
   assert.ok(data.ratings.length >= 1)
 })
 
+
+test('page views and recitation grades reach the dashboard', async () => {
+  process.env.ADMIN_EMAILS = 'owner@example.com'
+  const owner = (await auth.POST(req('POST', { credential: await idToken({ email: 'owner@example.com' }, 'test-client', 'google-owner') })))
+    .headers.get('set-cookie').split(';')[0]
+  const device = 'dev-guest-12345'
+  const post = data => track.POST(req('POST', data))
+  assert.equal((await post({ type: 'view', device, page: 'home' })).status, 200)
+  assert.equal((await post({ type: 'view', device, page: 'surah', surah: 112 })).status, 200)
+  assert.equal((await post({ type: 'recite', device, surah: 112, mode: 'surah', score: 93, stars: 2 })).status, 200)
+  assert.equal((await post({ type: 'recite', device, surah: 112, verse: 1, mode: 'verse', score: 100, stars: 3 })).status, 200)
+  assert.equal((await post({ type: 'recite', surah: 999, mode: 'verse', score: 1, stars: 1 })).status, 400)
+  assert.equal((await post({ type: 'view', page: 'admin' })).status, 400)
+
+  const data = await (await analytics.GET(req('GET', null, owner))).json()
+  assert.ok(data.totals.views_7d >= 2)
+  assert.ok(data.totals.whole_surah_7d >= 1)
+  const ikhlas = data.surahs.find(r => r.surah === 112)
+  assert.equal(ikhlas.recitations, 2)
+  assert.equal(ikhlas.whole_surah, 1)
+  assert.equal(ikhlas.avg_score, 97)
+  assert.equal(data.recitations[0].mode, 'verse')
+  assert.ok(data.pages.some(p => p.page === 'home'))
+})

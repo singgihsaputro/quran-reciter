@@ -11,7 +11,8 @@ export async function GET(request) {
   if (!(await isAdmin(id))) return json({ error: 'not an admin' }, { status: 403 })
 
   const now = Date.now()
-  const [totals, logins, ratings, taps, daily] = await db.batch([
+  const week = now - 7 * DAY
+  const [totals, logins, ratings, taps, daily, usage, recitations, surahs, pages] = await db.batch([
     {
       sql: `SELECT
         (SELECT COUNT(*) FROM users) AS users,
@@ -34,8 +35,36 @@ export async function GET(request) {
             FROM events WHERE created_at >= ? GROUP BY day, type ORDER BY day`,
       args: [now - 30 * DAY],
     },
+    {
+      sql: `SELECT
+        (SELECT COUNT(*) FROM activity WHERE type = 'view' AND created_at >= ?) AS views_7d,
+        (SELECT COUNT(DISTINCT COALESCE(user_id, device)) FROM activity WHERE created_at >= ?) AS visitors_7d,
+        (SELECT COUNT(*) FROM activity WHERE type = 'recite' AND created_at >= ?) AS recitations_7d,
+        (SELECT COUNT(*) FROM activity WHERE type = 'recite' AND mode = 'surah' AND created_at >= ?) AS whole_surah_7d,
+        (SELECT ROUND(AVG(score)) FROM activity WHERE type = 'recite' AND created_at >= ?) AS avg_score_7d`,
+      args: [week, week, week, week, week],
+    },
+    `SELECT a.surah, a.verse, a.mode, a.score, a.stars, a.created_at, u.email
+      FROM activity a LEFT JOIN users u ON u.id = a.user_id
+      WHERE a.type = 'recite' ORDER BY a.created_at DESC LIMIT 300`,
+    `SELECT surah,
+        SUM(type = 'view') AS views,
+        COUNT(DISTINCT CASE WHEN type = 'view' THEN COALESCE(user_id, device) END) AS viewers,
+        SUM(type = 'recite') AS recitations,
+        SUM(type = 'recite' AND mode = 'surah') AS whole_surah,
+        ROUND(AVG(CASE WHEN type = 'recite' THEN score END)) AS avg_score,
+        ROUND(AVG(CASE WHEN type = 'recite' THEN stars END), 1) AS avg_stars
+      FROM activity WHERE page = 'surah' AND surah IS NOT NULL
+      GROUP BY surah ORDER BY views DESC, recitations DESC`,
+    `SELECT page, COUNT(*) AS views, COUNT(DISTINCT COALESCE(user_id, device)) AS viewers,
+        COUNT(DISTINCT user_id) AS signed_in
+      FROM activity WHERE type = 'view' GROUP BY page ORDER BY views DESC`,
   ], 'read')
 
   const plain = rs => rs.rows.map(r => Object.fromEntries(rs.columns.map(c => [c, r[c] == null ? null : typeof r[c] === 'bigint' ? Number(r[c]) : r[c]])))
-  return json({ totals: plain(totals)[0], logins: plain(logins), ratings: plain(ratings), taps: plain(taps), daily: plain(daily) })
+  return json({
+    totals: { ...plain(totals)[0], ...plain(usage)[0] },
+    logins: plain(logins), ratings: plain(ratings), taps: plain(taps), daily: plain(daily),
+    recitations: plain(recitations), surahs: plain(surahs), pages: plain(pages),
+  })
 }

@@ -58,12 +58,28 @@ async function signInGate(message) {
   document.head.append(script)
 }
 
-let view = 'logins'
+let view = 'recitations'
+let surahNames = {}
+const namesReady = fetch('/quran.json').then(r => r.json()).then(q => { surahNames = Object.fromEntries(q.map(s => [s.number, s.name])) }).catch(() => {})
+const surahName = n => (surahNames[n] ? `${n} · ${surahNames[n]}` : `Surah ${n}`)
+const PAGE_NAMES = { home: '📖 Recite (home)', surah: '🕌 A surah', story: '🌙 Story', support: '💝 Support' }
 
 function render(data) {
   const t = data.totals
   const kpi = (value, label) => h('div', { class: 'kpi' }, h('b', {}, value ?? 0), h('span', {}, label))
   const views = {
+    recitations: ['Recitations', table([['Who'], ['Surah'], ['Mode'], ['Score', true], ['Stars'], ['When', true]],
+      data.recitations.map(r => h('tr', {}, h('td', {}, who(r.email)), h('td', {}, surahName(r.surah)),
+        h('td', {}, r.mode === 'surah' ? '🕌 Whole surah' : `📖 Verse ${r.verse ?? ''}`),
+        h('td', { class: 'num' }, r.score), h('td', { class: 'stars-cell', 'aria-label': `${r.stars} stars` }, '★'.repeat(r.stars) || '—'),
+        h('td', { class: 'num' }, when(r.created_at)))))],
+    surahs: ['Surahs', table([['Surah'], ['Views', true], ['Viewers', true], ['Recitations', true], ['Whole surah', true], ['Avg score', true], ['Avg ★', true]],
+      data.surahs.map(r => h('tr', {}, h('td', {}, surahName(r.surah)), h('td', { class: 'num' }, r.views ?? 0), h('td', { class: 'num' }, r.viewers ?? 0),
+        h('td', { class: 'num' }, r.recitations ?? 0), h('td', { class: 'num' }, r.whole_surah ?? 0),
+        h('td', { class: 'num' }, r.avg_score ?? '—'), h('td', { class: 'num' }, r.avg_stars ?? '—'))))],
+    pages: ['Pages', table([['Page'], ['Views', true], ['Visitors', true], ['Signed in', true]],
+      data.pages.map(r => h('tr', {}, h('td', {}, PAGE_NAMES[r.page] ?? r.page), h('td', { class: 'num' }, r.views),
+        h('td', { class: 'num' }, r.viewers), h('td', { class: 'num' }, r.signed_in))))],
     logins: ['Sign-ins', table([['Who'], ['Name'], ['When', true]],
       data.logins.map(l => h('tr', {}, h('td', {}, l.email), h('td', {}, l.name ?? ''), h('td', { class: 'num' }, when(l.created_at)))))],
     ratings: ['Reviews', table([['Stars'], ['Review'], ['Who'], ['When', true]],
@@ -77,7 +93,9 @@ function render(data) {
     h('header', {}, h('h1', {}, 'Ayok Ngaji · Analytics'), h('p', { class: 'sub' }, `Updated ${when(Date.now())}`)),
     h('div', { class: 'kpis' },
       kpi(t.users, 'Accounts'), kpi(t.new_users_7d, 'New this week'), kpi(t.active_7d, 'Signed in this week'),
-      kpi(t.rating_avg ? `${t.rating_avg} ★` : '—', `Rating · ${t.ratings} reviews`), kpi(t.donate_taps, 'Donate taps'), kpi(t.shares, 'Shares')),
+      kpi(t.rating_avg ? `${t.rating_avg} ★` : '—', `Rating · ${t.ratings} reviews`), kpi(t.donate_taps, 'Donate taps'), kpi(t.shares, 'Shares'),
+      kpi(t.visitors_7d, 'Visitors this week'), kpi(t.views_7d, 'Page views this week'), kpi(t.recitations_7d, 'Recitations this week'),
+      kpi(t.whole_surah_7d, 'Whole-surah this week'), kpi(t.avg_score_7d ?? '—', 'Avg score this week')),
     h('section', { class: 'card' }, h('h2', {}, 'Sign-ins per day'), chart(data.daily)),
     h('div', { class: 'tabs-row', role: 'group' }, Object.entries(views).map(([id, [label]]) =>
       h('button', { 'aria-pressed': String(id === view), onclick: () => { view = id; render(data) } }, label))),
@@ -89,7 +107,9 @@ async function load() {
   if (!res) return signInGate('Could not reach the server.')
   if (res.status === 401) return signInGate('Sign in with the owner account.')
   if (res.status === 403) return signInGate('This account is not an admin. Sign in with the owner account.')
-  render(await res.json())
+  const data = await res.json()
+  await namesReady
+  render(data)
 }
 
 load()

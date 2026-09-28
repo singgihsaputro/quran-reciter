@@ -29,6 +29,12 @@ export function ready() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, type TEXT NOT NULL, created_at INTEGER NOT NULL)`,
     'CREATE INDEX IF NOT EXISTS events_type_time ON events (type, created_at)',
     'CREATE INDEX IF NOT EXISTS users_email ON users (lower(email))',
+    // What people open and how their recitations score. device is a random id
+    // kept in the browser, so guests count as visitors without being identified.
+    `CREATE TABLE IF NOT EXISTS activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, device TEXT, type TEXT NOT NULL,
+      page TEXT, surah INTEGER, verse INTEGER, mode TEXT, score INTEGER, stars INTEGER, created_at INTEGER NOT NULL)`,
+    'CREATE INDEX IF NOT EXISTS activity_type_time ON activity (type, created_at)',
   ], 'write')
   return schema
 }

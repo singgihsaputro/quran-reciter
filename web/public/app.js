@@ -204,6 +204,11 @@ function route() {
   else if (page === 'story') leave = storyScreen(Number(arg) || 0)
   else if (page === 'support') leave = supportScreen()
   else leave = homeScreen()
+  usage({
+    type: 'view',
+    page: surah ? 'surah' : page === 'story' || page === 'support' ? page : 'home',
+    surah: surah?.number ?? (page === 'story' ? Number(arg) || 0 : undefined),
+  })
   window.scrollTo(0, 0)
 }
 
@@ -356,6 +361,10 @@ function reciteScreen(surah, startVerse, startWhole) {
     live = null
     phase = 'done'
     targets().forEach((v, i) => record(surah.number, v.number, share(r, i).stars))
+    usage({
+      type: 'recite', surah: surah.number, verse: whole ? undefined : verseNo,
+      mode: whole ? 'surah' : 'verse', score: Math.round(r.accuracy * 100), stars: r.stars,
+    })
     maybeAskRating()
     maybeAskInstall()
     // A chime per star as it pops in (in step with the animation), then the verdict.
@@ -848,10 +857,17 @@ function supportScreen() {
 }
 
 
-/** Counts a tap for the owner's dashboard; sendBeacon survives the page leaving. */
-function track(type) {
-  try { navigator.sendBeacon('/api/event', new Blob([JSON.stringify({ type })], { type: 'application/json' })) } catch { /* never block the tap */ }
+const beacon = (path, data) => {
+  try { navigator.sendBeacon(path, new Blob([JSON.stringify(data)], { type: 'application/json' })) } catch { /* never block the child */ }
 }
+/** Counts a tap on Donate or Share for the owner's dashboard. */
+const track = type => beacon('/api/event', { type })
+
+// A random id for this browser, so the dashboard can count visitors without
+// knowing who a guest is.
+const device = store.get('device', null) ?? (() => { const id = crypto.randomUUID(); store.set('device', id); return id })()
+/** Page views and recitation grades for the owner's dashboard. */
+const usage = data => beacon('/api/track', { ...data, device })
 
 async function offerInstall() {
   if (installPrompt) {

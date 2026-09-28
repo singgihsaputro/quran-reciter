@@ -19,6 +19,7 @@ the last verse and language are saved to the account.
 | `PUT /api/progress` | `{ stars, state }` — stars only ever go up |
 | `POST /api/rating` | `{ stars: 1..5, text? }` — signed in or not |
 | `POST /api/event` | `{ type: 'donate_tap' \| 'share' }` — counted for the dashboard |
+| `POST /api/track` | page views and recitation grades (`view` / `recite`), with an anonymous device id |
 | `GET /api/analytics` | the owner's dashboard data — only for emails in `ADMIN_EMAILS` |
 
 ## Progress per account
@@ -28,8 +29,9 @@ siblings sharing a phone never mix progress.
 
 ## Dashboard
 
-`/analytics` shows sign-ins (who, when), reviews, and taps on Donate and
-Share, with a 30-day chart. The page is public; its data is not — the API
+`/analytics` shows sign-ins (who, when), reviews, taps on Donate and Share,
+page views and visitors, and every recitation — surah, verse or whole surah,
+score and stars — with per-surah averages and a 30-day chart. The page is public; its data is not — the API
 answers only accounts whose email is in `ADMIN_EMAILS` (comma-separated), so
 set that variable in Vercel alongside the others.
 
