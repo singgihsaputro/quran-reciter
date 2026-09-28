@@ -3,8 +3,27 @@
 // and the audio servers are never cached here.
 const CACHE = 'ayok-ngaji'
 
-self.addEventListener('install', () => self.skipWaiting())
+// Saved up front, so the app — and the support QRIS — still open if the server
+// is ever down, e.g. paused for going over the free hosting quota.
+const CORE = ['/', '/app.js', '/matcher.js', '/media.js', '/strings.js', '/sfx.js', '/style.css', '/quran.json',
+  '/stories.json', '/story_verses.json', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png',
+  '/qris-ayok-ngaji.jpg', '/500.html']
+
+self.addEventListener('install', event => {
+  self.skipWaiting()
+  // One by one, so a single missing file doesn't cancel the rest.
+  event.waitUntil(caches.open(CACHE).then(cache => Promise.all(CORE.map(path => cache.add(path).catch(() => {})))))
+})
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()))
+
+// The last good copy of a request; for a page, the app itself, else the
+// "server is resting" page.
+async function saved(request) {
+  const hit = await caches.match(request, { ignoreSearch: true })
+  if (hit) return hit
+  if (request.mode === 'navigate') return (await caches.match('/')) ?? (await caches.match('/500.html')) ?? Response.error()
+  return Response.error()
+}
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
@@ -15,10 +34,12 @@ self.addEventListener('fetch', event => {
         if (response.ok) {
           const copy = response.clone()
           caches.open(CACHE).then(cache => cache.put(event.request, copy))
+          return response
         }
-        return response
+        // A server error (a paused deployment answers 503) gets the saved copy; a 404 stays a 404.
+        return response.status >= 500 ? saved(event.request).then(r => (r.type === 'error' ? response : r)) : response
       })
-      .catch(() => caches.match(event.request).then(hit => hit ?? Response.error())),
+      .catch(() => saved(event.request)),
   )
 })
 

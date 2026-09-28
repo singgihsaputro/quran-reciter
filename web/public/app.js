@@ -102,7 +102,7 @@ async function api(method, path, data, keepalive = false) {
     headers: data ? { 'content-type': 'application/json' } : {},
     body: data ? JSON.stringify(data) : undefined,
   })
-  if (!res.ok) throw new Error(`${path}: ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`${path}: ${res.status}`), { status: res.status })
   return res.json()
 }
 
@@ -133,6 +133,7 @@ addEventListener('pagehide', () => flush(true))
 /** Switches to this account's own progress: what the server holds, plus anything this device saved for it offline. */
 function adopt(data) {
   user = data.user
+  store.set('account', user)
   useAccount(user.email.toLowerCase())
   for (const [key, n] of Object.entries(data.stars ?? {})) if (n > (best[key] ?? 0)) best[key] = n
   store.set(keyFor('stars'), best)
@@ -167,8 +168,16 @@ function h(tag, props = {}, ...children) {
 // app's tools/fetch_quran.py and copied here as-is; no verse is typed by hand.
 
 let quran, stories, storyVerses
-// The account is optional: if the API can't be reached, the app works signed out.
-const account = Promise.all([api('GET', '/api/config'), api('GET', '/api/me')]).catch(() => [{}, {}])
+// The account is optional: if the API can't be reached, the app works with the
+// account last signed in on this phone (or as a guest). A 5xx means the server
+// itself is down — e.g. Vercel paused it for going over the free quota.
+let reachable = true
+let serverDown = false
+const account = Promise.all([api('GET', '/api/config'), api('GET', '/api/me')]).catch(e => {
+  reachable = false
+  serverDown = e.status >= 500
+  return [{}, {}]
+})
 try {
   ;[quran, { stories }, storyVerses] = await Promise.all(
     ['quran.json', 'stories.json', 'story_verses.json'].map(f => fetch(f).then(r => { if (!r.ok) throw new Error(f); return r.json() })))
@@ -176,6 +185,10 @@ try {
   clientId = config.googleClientId ?? null
   vapidKey = config.vapidPublicKey ?? null
   if (me.user) adopt(me)
+  else if (!reachable && store.get('account')) {
+    user = store.get('account')
+    useAccount(user.email.toLowerCase())
+  }
 } catch {
   $app.replaceChildren(h('p', { class: 'fatal' }, 'Could not load the Qur\'an text. Check the internet and reload.'))
   throw new Error('data')
@@ -803,6 +816,7 @@ async function signOut() {
   try { await api('DELETE', '/api/auth') } catch { /* the cookie expires on its own */ }
   window.google?.accounts.id.disableAutoSelect()
   user = null
+  store.set('account', null)
   useAccount(null) // back to the guest's own progress
   route()
 }
@@ -933,6 +947,15 @@ function askSupport() {
   openDialog(h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '💝'), ...donateCard())
 }
 
+/** The server is down (most likely over its free quota); the app still works from this phone. */
+function serverResting() {
+  openDialog(
+    h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '🙏'),
+    h('h2', {}, s.restTitle),
+    h('p', {}, s.restText),
+    h('button', { class: 'btn donate', onclick: showQris }, s.restSupport))
+}
+
 function donateCard() {
   return [
     h('h2', {}, s.donateTitle),
@@ -1041,3 +1064,4 @@ document.documentElement.lang = lang
 route()
 if (!user && store.get('handoff')) awaitHandoff() // back from signing in in Safari
 seen()
+if (serverDown) setTimeout(serverResting, 800)
