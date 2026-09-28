@@ -194,7 +194,6 @@ function route() {
   leave()
   leave = () => {}
   const [, page, arg, extra] = location.hash.split('/')
-  handoff = page === 'signin' ? arg : null
   const surah = page === 'surah' ? quran.find(x => x.number === Number(arg)) ?? quran[0] : null
   if (surah && locked(surah.number)) {
     location.replace('#/')
@@ -206,7 +205,7 @@ function route() {
   if (surah) leave = reciteScreen(surah, Number(extra) || 1, extra === 'all')
   else if (page === 'story') leave = storyScreen(Number(arg) || 0)
   else if (page === 'support') leave = supportScreen()
-  else if (page === 'signin') leave = handoffScreen(arg)
+  else if (page === 'signin') leave = signinScreen(arg)
   else leave = homeScreen()
   usage({
     type: 'view',
@@ -725,46 +724,59 @@ function googleButton() {
 }
 
 /**
- * On an iPhone home screen, Google's popup opens in Safari and can never report
- * back, and Google refuses to sign in inside the home-screen app itself. So the
- * child signs in on a Safari page (handoffScreen) carrying a random code, and
- * this app trades that code for the session once they come back.
+ * On an iPhone home screen Google's popup opens in Safari and can never report
+ * back. So there the child signs in on Google's own full page in Safari, which
+ * posts to /api/auth with a random code the app made; the app then trades that
+ * code for its session at /api/handoff. The code is kept in storage because iOS
+ * may restart the app while the child is in Safari.
  */
 function safariSignIn() {
   const status = h('p', { class: 'note', 'aria-live': 'polite' })
-  let timer
-  const button = h('button', {
+  return h('div', { class: 'gsi' }, h('button', {
     class: 'btn',
     onclick() {
       const code = crypto.randomUUID()
-      window.open(`${location.origin}/#/signin/${code}`, '_blank')
+      store.set('handoff', { code, until: Date.now() + 10 * 60 * 1000 })
+      window.open(`https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+        client_id: clientId, redirect_uri: `${location.origin}/api/auth`, response_type: 'id_token',
+        response_mode: 'form_post', scope: 'openid email profile', state: code, nonce: code, prompt: 'select_account',
+      })}`, '_blank')
       status.textContent = s.finishInSafari
-      clearInterval(timer)
-      const until = Date.now() + 10 * 60 * 1000
-      timer = setInterval(async () => {
-        if (!button.isConnected || Date.now() > until) return clearInterval(timer)
-        if (document.hidden) return
-        try {
-          const data = await api('POST', '/api/handoff', { id: code })
-          if (data.user) { clearInterval(timer); welcome(data) }
-        } catch { /* offline for a moment: try again next tick */ }
-      }, 2000)
+      awaitHandoff()
     },
-  }, s.signInGoogle)
-  return h('div', { class: 'gsi' }, button, status)
+  }, s.signInGoogle), status)
 }
 
-// The code in #/signin/<code>, while that Safari page is open; handedOff once used.
-let handoff = null
-let handedOff = null
+let polling
+async function checkHandoff() {
+  const pending = store.get('handoff')
+  if (!pending || user || Date.now() > pending.until) return clearInterval(polling)
+  if (document.hidden) return
+  try {
+    const data = await api('POST', '/api/handoff', { id: pending.code })
+    if (!data.user) return
+    store.set('handoff', null)
+    clearInterval(polling)
+    welcome(data)
+  } catch { /* offline for a moment: try again next tick */ }
+}
+function awaitHandoff() {
+  clearInterval(polling)
+  polling = setInterval(checkHandoff, 2000)
+  checkHandoff()
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkHandoff() })
 
-/** The Safari page the home-screen app opens: sign in here, then go back to the app. */
-function handoffScreen(code) {
+/** Where Google's full-page sign-in lands (see safariSignIn). */
+function signinScreen(result) {
+  if (homeScreenApp) { // iOS brought the page back into the app itself: it signs in from here
+    location.replace('#/')
+    awaitHandoff()
+    return () => {}
+  }
   $app.replaceChildren(h('main', { class: 'support' },
     h('header', { class: 'hero' }, h('div', { class: 'hero-row' }, h('h1', {}, s.handoffTitle))),
-    h('section', { class: 'card' }, handedOff === code
-      ? h('p', {}, s.handoffDone)
-      : [h('p', {}, s.handoffText), googleButton()])))
+    h('section', { class: 'card' }, h('p', {}, result === 'done' ? s.handoffDone : s.signInFailed))))
   return () => {}
 }
 
@@ -776,9 +788,7 @@ function welcome(data) {
 
 async function signedIn({ credential }) {
   try {
-    const data = await api('POST', '/api/auth', { credential, handoff })
-    handedOff = handoff
-    welcome(data)
+    welcome(await api('POST', '/api/auth', { credential }))
   } catch {
     openDialog(h('p', {}, s.signInFailed))
   }
@@ -967,3 +977,4 @@ async function share() {
 
 document.documentElement.lang = lang
 route()
+if (!user && store.get('handoff')) awaitHandoff() // back from signing in in Safari

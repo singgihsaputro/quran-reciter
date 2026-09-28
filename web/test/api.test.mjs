@@ -110,16 +110,29 @@ test('page views and recitation grades reach the dashboard', async () => {
   assert.ok(data.pages.some(p => p.page === 'home'))
 })
 
-test('iPhone home-screen app: sign in in Safari, then pick the session up with the code', async () => {
+test('iPhone home-screen app: Google signs in in Safari, the app picks the session up with the code', async () => {
   const handoff = await import('../api/handoff.js')
   const code = crypto.randomUUID()
   const pick = async id => handoff.POST(req('POST', { id }))
+  const fromGoogle = fields => auth.POST(new Request('http://localhost/api/auth', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(fields).toString(),
+  }))
 
   assert.equal((await pick('not-a-code')).status, 400)
   assert.equal((await (await pick(code)).json()).user, null) // not signed in yet
 
-  const good = await idToken({ email: 'ios@example.com' }, 'test-client', 'google-ios')
-  assert.equal((await auth.POST(req('POST', { credential: good, handoff: code }))).status, 200)
+  // A token minted for another request (wrong nonce) or a cancel parks nothing.
+  const other = await idToken({ email: 'ios@example.com', nonce: crypto.randomUUID() }, 'test-client', 'google-ios')
+  assert.equal((await fromGoogle({ id_token: other, state: code })).headers.get('location'), '/#/signin/failed')
+  assert.equal((await fromGoogle({ error: 'access_denied', state: code })).headers.get('location'), '/#/signin/failed')
+  assert.equal((await (await pick(code)).json()).user, null)
+
+  const good = await idToken({ email: 'ios@example.com', nonce: code }, 'test-client', 'google-ios')
+  const done = await fromGoogle({ id_token: good, state: code })
+  assert.equal(done.status, 303)
+  assert.equal(done.headers.get('location'), '/#/signin/done')
 
   const res = await pick(code)
   assert.equal((await res.json()).user.email, 'ios@example.com')

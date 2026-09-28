@@ -44,25 +44,31 @@ async function signInGate(message) {
   const slot = h('div')
   $dash.replaceChildren(h('section', { class: 'card gate' }, h('h2', {}, 'Ayok Ngaji · Analytics'), h('p', {}, message), slot))
   if (!googleClientId) return slot.append(h('p', { class: 'empty' }, 'Sign-in is not set up (GOOGLE_CLIENT_ID).'))
-  // iPhone home-screen app: Google can't sign in here, so sign in on the app's
-  // Safari page with a one-time code and pick the session up (see app.js safariSignIn).
+  // iPhone home-screen app: Google's popup can't report back here, so sign in on
+  // Google's full page in Safari and pick the session up with a one-time code
+  // (same flow and storage key as app.js safariSignIn).
   const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   if (iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) {
     const status = h('p', { class: 'empty' })
+    const check = async () => {
+      const pending = JSON.parse(localStorage.getItem('recite.handoff') ?? 'null')
+      if (!pending || Date.now() > pending.until || document.hidden) return
+      const data = await fetch('/api/handoff', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: pending.code }) })
+        .then(r => r.json()).catch(() => ({}))
+      if (data.user) { localStorage.removeItem('recite.handoff'); load() }
+    }
+    setInterval(check, 2000)
+    document.addEventListener('visibilitychange', check)
     slot.append(h('button', {
       class: 'btn',
       onclick() {
-        const id = crypto.randomUUID()
-        window.open(`${location.origin}/#/signin/${id}`, '_blank')
+        const code = crypto.randomUUID()
+        localStorage.setItem('recite.handoff', JSON.stringify({ code, until: Date.now() + 10 * 60 * 1000 }))
+        window.open(`https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+          client_id: googleClientId, redirect_uri: `${location.origin}/api/auth`, response_type: 'id_token',
+          response_mode: 'form_post', scope: 'openid email profile', state: code, nonce: code, prompt: 'select_account',
+        })}`, '_blank')
         status.textContent = 'Finish signing in on the Safari page that opened, then come back here.'
-        const until = Date.now() + 10 * 60 * 1000
-        const timer = setInterval(async () => {
-          if (Date.now() > until) return clearInterval(timer)
-          if (document.hidden) return
-          const data = await fetch('/api/handoff', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) })
-            .then(r => r.json()).catch(() => ({}))
-          if (data.user) { clearInterval(timer); load() }
-        }, 2000)
       },
     }, 'Sign in with Google'), status)
     return
