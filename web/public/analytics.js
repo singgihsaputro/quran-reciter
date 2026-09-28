@@ -46,7 +46,14 @@ async function signInGate(message) {
   if (!googleClientId) return slot.append(h('p', { class: 'empty' }, 'Sign-in is not set up (GOOGLE_CLIENT_ID).'))
   const script = h('script', { src: 'https://accounts.google.com/gsi/client', async: true })
   script.onload = () => {
-    google.accounts.id.initialize({
+    // Home-screen app on iPhone: the popup can't report back, so Google redirects
+    // to /api/auth instead, and the rq_next cookie tells it to come back here.
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    const homeScreenApp = iphone && (matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)
+    if (homeScreenApp) document.cookie = 'rq_next=analytics; Path=/; Max-Age=600; SameSite=None; Secure'
+    google.accounts.id.initialize(homeScreenApp ? {
+      client_id: googleClientId, ux_mode: 'redirect', login_uri: `${location.origin}/api/auth`,
+    } : {
       client_id: googleClientId,
       callback: async ({ credential }) => {
         await fetch('/api/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential }) })

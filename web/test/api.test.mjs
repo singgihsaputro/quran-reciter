@@ -128,4 +128,10 @@ test('redirect sign-in (iPhone home-screen app): CSRF checked, then back to the 
   assert.equal(ok.headers.get('location'), '/#/')
   const cookie = ok.headers.get('set-cookie').split(';')[0]
   assert.equal((await (await me.GET(req('GET', null, cookie))).json()).user.email, 'ios@example.com')
+
+  const fromDashboard = form(good, 't', 't')
+  fromDashboard.headers.set('cookie', 'rq_next=analytics; g_csrf_token=t')
+  const dash = await auth.POST(fromDashboard)
+  assert.equal(dash.headers.get('location'), '/analytics')
+  assert.match(dash.headers.get('set-cookie'), /rq_session=/)
 })
