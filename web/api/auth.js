@@ -12,7 +12,6 @@ export async function POST(request) {
     return json({ error: 'invalid credential' }, { status: 401 })
   }
   await ready()
-  // Same email as an account made with a code → the same account, same stars.
   const { id, user } = await signInByEmail(account.email, {
     googleId: account.sub, name: account.name ?? null, picture: account.picture ?? null,
   })

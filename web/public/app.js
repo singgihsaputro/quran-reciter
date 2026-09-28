@@ -729,63 +729,12 @@ async function signOut() {
   route()
 }
 
-/** Email, then a 6-digit code: sign-in for families without a Google account. */
-function emailSignIn() {
-  const email = h('input', { type: 'email', autocomplete: 'email', inputmode: 'email', placeholder: s.emailPlaceholder, 'aria-label': s.emailPlaceholder })
-  const code = h('input', {
-    class: 'code', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, pattern: '[0-9]*',
-    placeholder: s.codePlaceholder, 'aria-label': s.codePlaceholder, hidden: true,
-  })
-  const go = h('button', { class: 'btn', onclick: () => (code.hidden ? send() : verify()) }, s.sendCode)
-  const again = h('button', { class: 'btn ghost', hidden: true, onclick: send }, s.newCode)
-  const other = h('button', { class: 'btn ghost', hidden: true, onclick: () => step(false) }, s.otherEmail)
-  const note = h('p', { class: 'note', 'aria-live': 'polite' })
-
-  const call = async (method, data) => {
-    const res = await fetch('/api/otp', { method, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) })
-    return { status: res.status, data: await res.json().catch(() => ({})) }
-  }
-  function step(codeStep) {
-    code.hidden = again.hidden = other.hidden = !codeStep
-    email.hidden = codeStep
-    go.textContent = codeStep ? s.verifyCode : s.sendCode
-    if (codeStep) code.focus()
-    else { note.textContent = ''; email.focus() }
-  }
-  async function send() {
-    go.disabled = again.disabled = true
-    try {
-      const { status, data } = await call('POST', { email: email.value })
-      if (status === 200) { step(true); code.value = ''; note.textContent = s.codeSent(email.value.trim()) }
-      else note.textContent = data.error === 'wait' ? s.waitCode(data.retryIn) : data.error === 'bad_email' ? s.badEmail : s.emailUnavailable
-    } catch { note.textContent = s.emailUnavailable }
-    go.disabled = again.disabled = false
-  }
-  async function verify() {
-    go.disabled = true
-    try {
-      const { status, data } = await call('PUT', { email: email.value, code: code.value })
-      if (status === 200) {
-        adopt(await api('GET', '/api/me'))
-        if (dialog.open) dialog.close()
-        return route()
-      }
-      note.textContent = data.error === 'expired' ? s.codeExpired : s.wrongCode(data.error === 'too_many' ? 0 : data.left)
-    } catch { note.textContent = s.signInFailed }
-    go.disabled = false
-  }
-  code.addEventListener('input', () => { if (code.value.replace(/\D/g, '').length === 6) verify() })
-  email.addEventListener('keydown', e => { if (e.key === 'Enter') send() })
-  return h('div', { class: 'email-signin' }, h('p', { class: 'or' }, s.orEmail), email, code, go, again, other, note)
-}
-
 function openSignIn() {
   openDialog(
     h('div', { class: 'sheet-emoji', 'aria-hidden': 'true' }, '🔒'),
     h('h2', {}, s.lockedTitle),
     h('p', {}, s.lockedText),
     googleButton(),
-    emailSignIn(),
     h('p', { class: 'note' }, s.grownUp))
 }
 
@@ -876,7 +825,7 @@ function supportScreen() {
       h('button', { class: 'pill', 'aria-label': s.switchLanguage, onclick: switchLanguage }, `${s.flag} ${s.code}`))),
     h('section', { class: 'card' }, h('h2', {}, s.account), user
       ? [h('p', {}, s.signedInAs(user.email)), h('p', { class: 'note' }, s.syncNote), h('button', { class: 'btn ghost', onclick: signOut }, s.signOut)]
-      : [h('p', {}, s.guestNote), googleButton(), emailSignIn(), h('p', { class: 'note' }, s.grownUp)]),
+      : [h('p', {}, s.guestNote), googleButton(), h('p', { class: 'note' }, s.grownUp)]),
     h('section', { class: 'card' }, h('h2', {}, s.rateApp), ratingForm(stars => { if (stars >= 4) setTimeout(askSupport, 1400) })),
     canInstall() ? h('section', { class: 'card' }, h('h2', {}, s.installTitle), h('p', {}, s.installText),
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
