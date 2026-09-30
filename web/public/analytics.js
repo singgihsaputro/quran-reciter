@@ -91,6 +91,7 @@ let view = 'recitations'
 let surahNames = {}
 const namesReady = fetch('/quran.json').then(r => r.json()).then(q => { surahNames = Object.fromEntries(q.map(s => [s.number, s.name])) }).catch(() => {})
 const surahName = n => (surahNames[n] ? `${n} · ${surahNames[n]}` : `Surah ${n}`)
+const CONTEXTS = { browser: '🌐 Browser', 'in-app': '📱 In-app browser', pwa: '🏠 Home screen' }
 const PAGE_NAMES = { home: '📖 Recite (home)', surah: '🕌 A surah', story: '🌙 Story', support: '💝 Support' }
 
 function render(data) {
@@ -114,6 +115,18 @@ function render(data) {
     ratings: ['Reviews', table([['Stars'], ['Review'], ['Who'], ['When', true]],
       data.ratings.map(r => h('tr', {}, h('td', { class: 'stars-cell', 'aria-label': `${r.stars} stars` }, '★'.repeat(r.stars)),
         h('td', {}, r.text ?? h('span', { class: 'guest' }, '—')), h('td', {}, who(r.email)), h('td', { class: 'num' }, when(r.created_at)))))],
+    signin: ['Sign-in attempts', [
+      h('p', { class: 'empty' }, 'Each tap on "Sign in with Google": finished, failed, or abandoned (the Google window closed or never came back). In-app = an app\'s built-in browser (Instagram, Facebook, TikTok…); home screen = the installed app.'),
+      table([['Browser'], ['Where'], ['Taps', true], ['Finished', true], ['Failed', true], ['Abandoned', true], ['Success', true], ['Devices', true]],
+        data.signinBrowsers.map(r => h('tr', {}, h('td', {}, r.browser), h('td', {}, CONTEXTS[r.context] ?? r.context),
+          h('td', { class: 'num' }, r.taps), h('td', { class: 'num' }, r.done), h('td', { class: 'num' }, r.failed),
+          h('td', { class: 'num' }, Math.max(0, r.taps - r.done - r.failed)),
+          h('td', { class: 'num' }, r.taps ? `${Math.round((100 * r.done) / r.taps)}%` : '—'), h('td', { class: 'num' }, r.devices)))),
+      h('h3', {}, 'Latest attempts'),
+      table([['Result'], ['Browser'], ['Where'], ['Who'], ['When', true]],
+        data.signinAttempts.map(a => h('tr', {}, h('td', {}, a.done ? '✅ Finished' : a.failed ? '❌ Failed' : '⏳ Abandoned'),
+          h('td', {}, a.browser), h('td', {}, CONTEXTS[a.context] ?? a.context), h('td', {}, who(a.email)), h('td', { class: 'num' }, when(a.created_at))))),
+    ]],
     taps: ['Donate & share taps', table([['Tap'], ['Who'], ['When', true]],
       data.taps.map(e => h('tr', {}, h('td', {}, e.type === 'donate_tap' ? '💝 Donate' : '🔗 Share'), h('td', {}, who(e.email)), h('td', { class: 'num' }, when(e.created_at)))))],
   }

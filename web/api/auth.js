@@ -19,7 +19,8 @@ export async function POST(request) {
   if ((request.headers.get('content-type') ?? '').includes('application/x-www-form-urlencoded')) {
     const form = new URLSearchParams(await request.text())
     const code = form.get('state') ?? ''
-    const back = result => new Response(null, { status: 303, headers: { location: `/#/signin/${result}` } })
+    // The code rides along so the page can count a failed attempt against its tap.
+    const back = result => new Response(null, { status: 303, headers: { location: `/#/signin/${result}${HANDOFF.test(code) ? `/${code}` : ''}` } })
     try {
       if (!HANDOFF.test(code)) throw new Error('bad state')
       const { account, id } = await signIn(form.get('id_token') ?? '')

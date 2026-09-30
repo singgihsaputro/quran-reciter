@@ -12,7 +12,7 @@ export async function GET(request) {
 
   const now = Date.now()
   const week = now - 7 * DAY
-  const [totals, logins, ratings, taps, daily, usage, recitations, surahs, pages] = await db.batch([
+  const [totals, logins, ratings, taps, daily, usage, recitations, surahs, pages, signinBrowsers, signinAttempts] = await db.batch([
     {
       sql: `SELECT
         (SELECT COUNT(*) FROM users) AS users,
@@ -59,6 +59,18 @@ export async function GET(request) {
     `SELECT page, COUNT(*) AS views, COUNT(DISTINCT COALESCE(user_id, device)) AS viewers,
         COUNT(DISTINCT user_id) AS signed_in
       FROM activity WHERE type = 'view' GROUP BY page ORDER BY views DESC`,
+    // Per browser: sign-in attempts started, finished, failed (an attempt that
+    // is neither was abandoned — e.g. the Google window closed or never came back).
+    `SELECT browser, context,
+        COUNT(DISTINCT CASE WHEN step = 'tap' THEN attempt END) AS taps,
+        COUNT(DISTINCT CASE WHEN step = 'done' THEN attempt END) AS done,
+        COUNT(DISTINCT CASE WHEN step = 'fail' THEN attempt END) AS failed,
+        COUNT(DISTINCT device) AS devices
+      FROM signin GROUP BY browser, context ORDER BY taps DESC, done DESC`,
+    `SELECT s.attempt, MIN(s.browser) AS browser, MIN(s.context) AS context, MIN(s.created_at) AS created_at,
+        MAX(s.step = 'done') AS done, MAX(s.step = 'fail') AS failed, MAX(u.email) AS email
+      FROM signin s LEFT JOIN users u ON u.id = s.user_id
+      GROUP BY s.attempt ORDER BY created_at DESC LIMIT 200`,
   ], 'read')
 
   const plain = rs => rs.rows.map(r => Object.fromEntries(rs.columns.map(c => [c, r[c] == null ? null : typeof r[c] === 'bigint' ? Number(r[c]) : r[c]])))
@@ -66,5 +78,6 @@ export async function GET(request) {
     totals: { ...plain(totals)[0], ...plain(usage)[0] },
     logins: plain(logins), ratings: plain(ratings), taps: plain(taps), daily: plain(daily),
     recitations: plain(recitations), surahs: plain(surahs), pages: plain(pages),
+    signinBrowsers: plain(signinBrowsers), signinAttempts: plain(signinAttempts),
   })
 }

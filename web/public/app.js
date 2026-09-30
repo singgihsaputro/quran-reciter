@@ -222,7 +222,7 @@ function route() {
   if (surah) leave = reciteScreen(surah, Number(extra) || 1, extra === 'all')
   else if (page === 'story') leave = storyScreen(Number(arg) || 0)
   else if (page === 'support') leave = supportScreen()
-  else if (page === 'signin') leave = signinScreen(arg)
+  else if (page === 'signin') leave = signinScreen(arg, extra)
   else leave = homeScreen()
   usage({
     type: 'view',
@@ -735,7 +735,10 @@ function googleButton() {
   if (!clientId) return h('p', { class: 'note' }, s.signInUnavailable)
   if (homeScreenApp) return safariSignIn()
   loadGoogle()
-    .then(() => google.accounts.id.renderButton(slot, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: lang }))
+    .then(() => google.accounts.id.renderButton(slot, {
+      theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: lang,
+      click_listener: () => signinStep('tap', (attempt = crypto.randomUUID())),
+    }))
     .catch(() => slot.replaceChildren(h('p', { class: 'note' }, s.signInFailed)))
   return slot
 }
@@ -754,6 +757,7 @@ function safariSignIn() {
     onclick() {
       const code = crypto.randomUUID()
       store.set('handoff', { code, until: Date.now() + 10 * 60 * 1000 })
+      signinStep('tap', code)
       window.open(`https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
         client_id: clientId, redirect_uri: `${location.origin}/api/auth`, response_type: 'id_token',
         response_mode: 'form_post', scope: 'openid email profile', state: code, nonce: code, prompt: 'select_account',
@@ -774,6 +778,7 @@ async function checkHandoff() {
     if (!data.user) return
     store.set('handoff', null)
     clearInterval(polling)
+    signinStep('done', pending.code)
     welcome(data)
   } catch { /* offline for a moment: try again next tick */ }
 }
@@ -785,7 +790,8 @@ function awaitHandoff() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkHandoff() })
 
 /** Where Google's full-page sign-in lands (see safariSignIn). */
-function signinScreen(result) {
+function signinScreen(result, code) {
+  if (result === 'failed' && code) signinStep('fail', code)
   if (homeScreenApp) { // iOS brought the page back into the app itself: it signs in from here
     location.replace('#/')
     awaitHandoff()
@@ -806,7 +812,9 @@ function welcome(data) {
 async function signedIn({ credential }) {
   try {
     welcome(await api('POST', '/api/auth', { credential }))
+    signinStep('done', attempt)
   } catch {
+    signinStep('fail', attempt)
     openDialog(h('p', {}, s.signInFailed))
   }
 }
@@ -1018,6 +1026,26 @@ const track = type => beacon('/api/event', { type })
 const device = store.get('device', null) ?? (() => { const id = crypto.randomUUID(); store.set('device', id); return id })()
 /** Page views and recitation grades for the owner's dashboard. */
 const usage = data => beacon('/api/track', { ...data, device })
+
+/** The browser, and whether it's a browser, an app's built-in browser, or the home-screen app — for the sign-in stats. */
+function whereAmI() {
+  const ua = navigator.userAgent
+  const app = [['Instagram', /Instagram/], ['Facebook', /FBAN|FBAV|FB_IAB|FB4A/], ['Threads', /Barcelona/], ['TikTok', /TikTok|musical_ly|Bytedance/i],
+    ['WhatsApp', /WhatsApp/], ['LINE', /\bLine\//], ['Telegram', /Telegram/], ['X', /Twitter/]].find(([, re]) => re.test(ua))?.[0]
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+  const name = app ?? (standalone && iphone ? 'Safari'
+    : /SamsungBrowser/.test(ua) ? 'Samsung Internet' : /EdgA?\/|EdgiOS/.test(ua) ? 'Edge' : /OPR\/|Opera/.test(ua) ? 'Opera'
+    : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /CriOS/.test(ua) ? 'Chrome' : /Chrome\//.test(ua) ? (/; wv\)/.test(ua) ? 'Android WebView' : 'Chrome')
+    : /Safari\//.test(ua) ? 'Safari' : 'Other')
+  const os = iphone ? 'iOS' : /Android/.test(ua) ? 'Android' : 'desktop'
+  // iOS apps' built-in browsers drop the "Safari/" token that Safari and iOS Chrome send.
+  const context = standalone ? 'pwa' : app || name === 'Android WebView' || (iphone && !/Safari\//.test(ua)) ? 'in-app' : 'browser'
+  return { browser: `${name} · ${os}`, context }
+}
+
+// The current popup sign-in attempt (the iPhone home-screen flow uses its handoff code instead).
+let attempt = 'none-yet'
+const signinStep = (step, id) => usage({ type: 'signin', step, attempt: id, ...whereAmI() })
 
 async function offerInstall() {
   if (installPrompt) {

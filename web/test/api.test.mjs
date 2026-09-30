@@ -126,14 +126,14 @@ test('iPhone home-screen app: Google signs in in Safari, the app picks the sessi
 
   // A token minted for another request (wrong nonce) or a cancel parks nothing.
   const other = await idToken({ email: 'ios@example.com', nonce: crypto.randomUUID() }, 'test-client', 'google-ios')
-  assert.equal((await fromGoogle({ id_token: other, state: code })).headers.get('location'), '/#/signin/failed')
-  assert.equal((await fromGoogle({ error: 'access_denied', state: code })).headers.get('location'), '/#/signin/failed')
+  assert.equal((await fromGoogle({ id_token: other, state: code })).headers.get('location'), `/#/signin/failed/${code}`)
+  assert.equal((await fromGoogle({ error: 'access_denied', state: code })).headers.get('location'), `/#/signin/failed/${code}`)
   assert.equal((await (await pick(code)).json()).user, null)
 
   const good = await idToken({ email: 'ios@example.com', nonce: code }, 'test-client', 'google-ios')
   const done = await fromGoogle({ id_token: good, state: code })
   assert.equal(done.status, 303)
-  assert.equal(done.headers.get('location'), '/#/signin/done')
+  assert.equal(done.headers.get('location'), `/#/signin/done/${code}`)
 
   const res = await pick(code)
   assert.equal((await res.json()).user.email, 'ios@example.com')
@@ -172,4 +172,29 @@ test('daily reminder: only browsers away for a day, once per absence', async () 
 
   assert.equal((await push.DELETE(req('DELETE', { endpoint: sub('away').endpoint }))).status, 200)
   assert.equal((await db.execute('SELECT count(*) AS n FROM push')).rows[0].n, 1) // just 'here'
+})
+
+test('sign-in stats: taps, finished and failed attempts per browser', async () => {
+  const track = await import('../api/track.js')
+  const { db } = await import('../api/_lib.js')
+  process.env.ADMIN_EMAILS = 'owner@example.com'
+  const owner = (await auth.POST(req('POST', { credential: await idToken({ email: 'owner@example.com' }, 'test-client', 'google-owner') })))
+    .headers.get('set-cookie').split(';')[0]
+  const step = (attempt, s, browser, context) => track.POST(req('POST', { type: 'signin', device: 'device-1234', attempt, step: s, browser, context }))
+
+  assert.equal((await step('a1-attempt', 'tap', 'Instagram · iOS', 'nowhere')).status, 400)
+  assert.equal((await step('a1-attempt', 'tap', '<script>', 'browser')).status, 400)
+  await step('a1-attempt', 'tap', 'Instagram · iOS', 'in-app')                // abandoned
+  await step('a2-attempt', 'tap', 'Chrome · Android', 'browser')
+  await step('a2-attempt', 'done', 'Chrome · Android', 'browser')
+  await step('a3-attempt', 'tap', 'Chrome · Android', 'browser')
+  await step('a3-attempt', 'fail', 'Chrome · Android', 'browser')
+
+  const data = await (await analytics.GET(req('GET', null, owner))).json()
+  const by = Object.fromEntries(data.signinBrowsers.map(r => [r.browser, r]))
+  assert.deepEqual([by['Chrome · Android'].taps, by['Chrome · Android'].done, by['Chrome · Android'].failed], [2, 1, 1])
+  assert.deepEqual([by['Instagram · iOS'].taps, by['Instagram · iOS'].done, by['Instagram · iOS'].context], [1, 0, 'in-app'])
+  const a2 = data.signinAttempts.find(a => a.attempt === 'a2-attempt')
+  assert.equal(a2.done, 1)
+  assert.ok((await db.execute('SELECT COUNT(*) AS n FROM signin')).rows[0].n >= 5)
 })

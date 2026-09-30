@@ -40,6 +40,13 @@ export function ready() {
     // Browsers with the daily reminder on (api/push.js), and when each last opened the app.
     `CREATE TABLE IF NOT EXISTS push (
       endpoint TEXT PRIMARY KEY, sub TEXT NOT NULL, lang TEXT NOT NULL, last_open INTEGER NOT NULL, last_sent INTEGER)`,
+    // Each tap on "Sign in with Google", and whether that attempt finished — by
+    // browser and by where it ran (a browser, an app's built-in browser, or the
+    // home-screen app). One attempt id per tap ties its steps together.
+    `CREATE TABLE IF NOT EXISTS signin (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, device TEXT, attempt TEXT NOT NULL, step TEXT NOT NULL,
+      browser TEXT, context TEXT, user_id TEXT, created_at INTEGER NOT NULL)`,
+    'CREATE INDEX IF NOT EXISTS signin_attempt ON signin (attempt)',
   ], 'write')
   return schema
 }
