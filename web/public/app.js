@@ -360,7 +360,13 @@ function reciteScreen(surah, startVerse, startWhole) {
   }
 
   const recitation = new Recitation({
-    keepGoing: text => whole && match(expected(), text).words.at(-1)?.status !== 'correct',
+    // Each listening session ends at a pause for breath, so keep opening new ones
+    // until the last word is read — or, in one verse, until as many words as the
+    // verse has were heard (the child got to the end, just not quite right).
+    keepGoing: text => {
+      const m = match(expected(), text)
+      return m.words.at(-1)?.status !== 'correct' && (whole || words(text).length < m.total)
+    },
     onListening: () => { phase = 'listening'; paintMic(); paintStatus() },
     onText: text => {
       live = match(expected(), text)
@@ -432,11 +438,20 @@ function reciteScreen(surah, startVerse, startWhole) {
   }
 
   // Whole surah: keep the verse being recited in view.
+  // Where the child is reading: the last word of an in-order run of matches,
+  // allowing a few skipped words. A common word (الله, من) matched far ahead
+  // doesn't count, and the screen only ever moves forward while listening.
+  const SKIP = 6
+  function readingHead(words) {
+    let head = -1
+    words.forEach((w, i) => { if (w.status === 'correct' && i - head <= SKIP) head = i })
+    return head
+  }
+
   function follow() {
     if (!whole || !live) return
-    const word = live.words.findLastIndex(w => w.status === 'correct')
-    const i = Math.max(0, starts().findLastIndex(st => st <= word))
-    if (i === following) return
+    const i = Math.max(0, starts().findLastIndex(st => st <= readingHead(live.words)))
+    if (i <= following) return
     following = i
     cardEls[i]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
