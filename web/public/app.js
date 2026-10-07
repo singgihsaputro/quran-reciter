@@ -867,7 +867,6 @@ const HIJAIYAH = [
   ['ق', 'Qof', 'قَاف'], ['ك', 'Kaf', 'كَاف'], ['ل', 'Lam', 'لَام'], ['م', 'Mim', 'مِيم'], ['ن', 'Nun', 'نُون'],
   ['و', 'Wau', 'وَاو'], ['ه', 'Ha', 'هَاء'], ['لا', 'Lam Alif', 'لَام أَلِف'], ['ء', 'Hamzah', 'هَمْزَة'], ['ي', 'Ya', 'يَاء'],
 ]
-const HIJAIYAH_COLORS = ['#FF5A5F', '#FFC53D', '#3DD68C', '#4FC3F7', '#B388FF', '#FF8A3D', '#FF6FB5']
 
 // iPhones only speak from inside a tap, so a tap says the letter itself and
 // the card it opens doesn't say it again.
@@ -886,7 +885,7 @@ function hijaiyahScreen(arg) {
     $app.replaceChildren(h('main', { class: 'hija' },
       h('header', { class: 'hija-head' }, h('h1', {}, s.hijaiyahTitle), h('p', {}, s.hijaiyahHint)),
       h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
-        h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`, style: `--c:${HIJAIYAH_COLORS[k % HIJAIYAH_COLORS.length]}`,
+        h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
           h('span', { class: 'hija-letter', lang: 'ar' }, letter[0]), h('span', { class: 'hija-name' }, letter[1]))))))
     return () => narrator.stop()
@@ -899,7 +898,7 @@ function hijaiyahScreen(arg) {
   }
   let x0 = null
   const card = h('div', {
-    class: 'hija-card', style: `--c:${HIJAIYAH_COLORS[i % HIJAIYAH_COLORS.length]}`,
+    class: 'hija-card',
     onpointerdown: e => { x0 = e.clientX },
     onpointerup: e => {
       if (x0 === null) return
@@ -910,9 +909,10 @@ function hijaiyahScreen(arg) {
       else sayLetter(letter)
     },
   },
-    h('span', { class: 'hija-big', lang: 'ar' }, letter[0]),
+    // Like a printed flash card: bismillah, the name, then the letter, yellow on charcoal.
+    h('span', { class: 'hija-bismillah', lang: 'ar' }, 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ'),
     h('span', { class: 'hija-label' }, letter[1]),
-    h('span', { class: 'hija-arabic', lang: 'ar' }, letter[2]))
+    h('span', { class: 'hija-big', lang: 'ar' }, letter[0]))
   $app.replaceChildren(h('main', { class: 'hija' },
     h('div', { class: 'hija-top' },
       h('a', { class: 'pill', href: '#/hijaiyah' }, `◀ ${s.hijaiyahAll}`),

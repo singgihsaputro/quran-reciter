@@ -240,36 +240,39 @@ body.night .tab.on { color: #fff; background: rgba(255,255,255,.12); }
 body.has-nav main { padding-bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 body.has-nav .dock { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
 
-/* ── Hijaiyah flash cards: black, so the bright letters are all a toddler sees ── */
+/* ── Hijaiyah flash cards: yellow on charcoal, like a printed toddler card ── */
+:root { --hija-yellow: #FFE11A; }
 body.dark { background: #000; }
 body.dark .tabs { background: rgba(14,14,18,.96); box-shadow: 0 -4px 18px rgba(0,0,0,.6); }
 body.dark .tab { color: #9A9AA8; }
 body.dark .tab.on { color: #fff; background: rgba(255,255,255,.14); }
 .hija { color: #fff; padding: 16px 16px 0; max-width: 720px; margin: 0 auto; }
-.hija-head h1 { font-size: 28px; font-weight: 900; }
+.hija-head h1 { font-size: 28px; font-weight: 900; color: var(--hija-yellow); }
 .hija-head p { color: #B9B9C6; font-weight: 700; margin-top: 4px; }
 .hija-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin: 18px 0 24px; }
 .hija-tile {
   display: grid; justify-items: center; gap: 2px; padding: 12px 6px 10px; border-radius: 22px;
-  background: #121216; border: 2px solid color-mix(in srgb, var(--c) 45%, transparent); color: var(--c); text-decoration: none;
+  background: linear-gradient(170deg, #2E2E2E, #1A1A1A); color: var(--hija-yellow); text-decoration: none;
+  box-shadow: 0 6px 16px rgba(0,0,0,.5);
 }
 .hija-tile:active { transform: scale(.94); }
 .hija-letter { font-family: 'Amiri Quran', serif; font-size: 54px; line-height: 1; height: 104px; display: flex; align-items: center; padding-bottom: 30px; }
-.hija-name { font-size: 15px; font-weight: 900; color: #E6E6EE; }
+.hija-name { font-size: 15px; font-weight: 900; color: var(--hija-yellow); }
 .hija-top { display: flex; justify-content: space-between; align-items: center; }
 .hija-top .pill { background: rgba(255,255,255,.14); color: #fff; text-decoration: none; }
 .hija-count { color: #9A9AA8; font-weight: 800; }
 .hija-card {
-  margin: 14px 0; min-height: 52vh; border-radius: 36px; background: #0B0B0F; border: 3px solid var(--c);
-  display: grid; place-items: center; align-content: center; gap: 4px; color: var(--c);
+  margin: 14px 0; min-height: 56vh; border-radius: 28px; padding: 18px 12px 0;
+  background: linear-gradient(175deg, #333 0%, #1F1F1F 55%, #161616 100%); box-shadow: 0 16px 40px rgba(0,0,0,.6);
+  display: grid; justify-items: center; align-content: start; gap: 2px; color: var(--hija-yellow);
   touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: pointer;
 }
-.hija-big { font-family: 'Amiri Quran', serif; font-size: min(40vw, 28vh); line-height: 1; padding: 2vh 0 15vh; }
-.hija-label { font-size: 34px; font-weight: 900; color: #fff; }
-.hija-arabic { font-family: 'Amiri Quran', serif; font-size: 32px; line-height: 1.8; color: #B9B9C6; }
+.hija-bismillah { font-family: 'Amiri Quran', serif; font-size: 22px; color: #fff; line-height: 2; }
+.hija-label { margin-top: 4vh; font-size: 52px; font-weight: 900; color: var(--hija-yellow); line-height: 1.1; }
+.hija-big { font-family: 'Amiri Quran', serif; font-size: min(42vw, 28vh); line-height: 1; padding: 3vh 0 14vh; }
 .hija-controls { display: flex; justify-content: center; align-items: center; gap: 22px; margin-bottom: 12px; }
 .hija-nav { width: 64px; height: 64px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 26px; }
-.hija-speak { width: 96px; height: 96px; border-radius: 50%; border: 0; background: var(--sun); font-size: 44px; box-shadow: 0 10px 30px rgba(255,197,61,.35); }
+.hija-speak { width: 96px; height: 96px; border-radius: 50%; border: 0; background: var(--hija-yellow); font-size: 44px; box-shadow: 0 10px 30px rgba(255,225,26,.3); }
 .hija-speak:active, .hija-nav:active { transform: scale(.92); }
 .hija-note { color: #B9B9C6; font-size: 13px; text-align: center; padding-bottom: 12px; }
 
