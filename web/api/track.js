@@ -1,10 +1,10 @@
 // POST — usage for the owner's dashboard, sent with navigator.sendBeacon:
-//   { type: 'view',   device, page: 'home'|'surah'|'story'|'support', surah? }  (surah = story number for 'story')
+//   { type: 'view',   device, page: 'home'|'surah'|'story'|'support'|'hijaiyah', surah? }  (surah = story number for 'story')
 //   { type: 'recite', device, surah, verse?, mode: 'verse'|'surah', score: 0..100, stars: 0..3 }
 //   { type: 'signin', device, attempt, step: 'tap'|'done'|'fail', browser, context: 'browser'|'in-app'|'pwa' }
 import { body, currentUser, db, json, ready } from './_lib.js'
 
-const PAGES = new Set(['home', 'surah', 'story', 'support'])
+const PAGES = new Set(['home', 'surah', 'story', 'support', 'hijaiyah'])
 const STEPS = new Set(['tap', 'done', 'fail'])
 const CONTEXTS = new Set(['browser', 'in-app', 'pwa'])
 const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null)

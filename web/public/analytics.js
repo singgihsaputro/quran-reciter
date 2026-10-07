@@ -92,7 +92,7 @@ let surahNames = {}
 const namesReady = fetch('/quran.json').then(r => r.json()).then(q => { surahNames = Object.fromEntries(q.map(s => [s.number, s.name])) }).catch(() => {})
 const surahName = n => (surahNames[n] ? `${n} · ${surahNames[n]}` : `Surah ${n}`)
 const CONTEXTS = { browser: '🌐 Browser', 'in-app': '📱 In-app browser', pwa: '🏠 Home screen' }
-const PAGE_NAMES = { home: '📖 Recite (home)', surah: '🕌 A surah', story: '🌙 Story', support: '💝 Support' }
+const PAGE_NAMES = { home: '📖 Recite (home)', surah: '🕌 A surah', story: '🌙 Story', support: '💝 Support', hijaiyah: '🔤 Hijaiyah' }
 
 function render(data) {
   const t = data.totals

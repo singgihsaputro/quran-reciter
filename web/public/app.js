@@ -217,23 +217,26 @@ function route() {
     return openSignIn()
   }
   document.body.classList.toggle('night', page === 'story')
+  document.body.classList.toggle('dark', page === 'hijaiyah')
   document.body.classList.toggle('has-nav', !surah)
-  $nav.replaceChildren(...(surah ? [] : tabs(page === 'story' ? 'story' : page === 'support' ? 'support' : 'recite')))
+  $nav.replaceChildren(...(surah ? [] : tabs(['story', 'support', 'hijaiyah'].includes(page) ? page : 'recite')))
   if (surah) leave = reciteScreen(surah, Number(extra) || 1, extra === 'all')
   else if (page === 'story') leave = storyScreen(Number(arg) || 0)
   else if (page === 'support') leave = supportScreen()
+  else if (page === 'hijaiyah') leave = hijaiyahScreen(arg)
   else if (page === 'signin') leave = signinScreen(arg, extra)
   else leave = homeScreen()
   usage({
     type: 'view',
-    page: surah ? 'surah' : page === 'story' || page === 'support' ? page : 'home',
+    page: surah ? 'surah' : ['story', 'support', 'hijaiyah'].includes(page) ? page : 'home',
     surah: surah?.number ?? (page === 'story' ? Number(arg) || 0 : undefined),
   })
   window.scrollTo(0, 0)
 }
 
 function tabs(active) {
-  return [['recite', '#/', '📖', s.tabRecite], ['story', `#/story/${tonight()}`, '🌙', s.tabStory], ['support', '#/support', '💝', s.tabSupport]]
+  return [['recite', '#/', '📖', s.tabRecite], ['hijaiyah', '#/hijaiyah', '🔤', s.tabHijaiyah],
+    ['story', `#/story/${tonight()}`, '🌙', s.tabStory], ['support', '#/support', '💝', s.tabSupport]]
     .map(([id, href, icon, label]) => h('a', { class: `tab${id === active ? ' on' : ''}`, href, 'aria-current': id === active ? 'page' : null },
       h('span', { class: 'tab-icon', 'aria-hidden': 'true' }, icon), h('span', {}, label)))
 }
@@ -851,6 +854,77 @@ function openSignIn() {
     h('p', {}, s.lockedText),
     googleButton(),
     h('p', { class: 'note' }, s.grownUp))
+}
+
+// ── Hijaiyah flash cards: big bright letters on black, for toddlers ─────────
+
+// [letter, name as said in Indonesia, the name in Arabic for the speech voice]
+const HIJAIYAH = [
+  ['ا', 'Alif', 'أَلِف'], ['ب', 'Ba', 'بَاء'], ['ت', 'Ta', 'تَاء'], ['ث', 'Tsa', 'ثَاء'], ['ج', 'Jim', 'جِيم'],
+  ['ح', 'Ha', 'حَاء'], ['خ', 'Kho', 'خَاء'], ['د', 'Dal', 'دَال'], ['ذ', 'Dzal', 'ذَال'], ['ر', 'Ro', 'رَاء'],
+  ['ز', 'Zai', 'زَاي'], ['س', 'Sin', 'سِين'], ['ش', 'Syin', 'شِين'], ['ص', 'Shod', 'صَاد'], ['ض', 'Dhod', 'ضَاد'],
+  ['ط', 'Tho', 'طَاء'], ['ظ', 'Dzho', 'ظَاء'], ['ع', "'Ain", 'عَيْن'], ['غ', 'Ghoin', 'غَيْن'], ['ف', 'Fa', 'فَاء'],
+  ['ق', 'Qof', 'قَاف'], ['ك', 'Kaf', 'كَاف'], ['ل', 'Lam', 'لَام'], ['م', 'Mim', 'مِيم'], ['ن', 'Nun', 'نُون'],
+  ['و', 'Wau', 'وَاو'], ['ه', 'Ha', 'هَاء'], ['لا', 'Lam Alif', 'لَام أَلِف'], ['ء', 'Hamzah', 'هَمْزَة'], ['ي', 'Ya', 'يَاء'],
+]
+const HIJAIYAH_COLORS = ['#FF5A5F', '#FFC53D', '#3DD68C', '#4FC3F7', '#B388FF', '#FF8A3D', '#FF6FB5']
+
+// iPhones only speak from inside a tap, so a tap says the letter itself and
+// the card it opens doesn't say it again.
+let spokeAt = 0
+/** Says a letter's name: in Arabic if the phone has an Arabic voice, else its Indonesian name. */
+function sayLetter([, latin, arabic]) {
+  spokeAt = Date.now()
+  if (narrator.canSpeak('ar')) narrator.read([arabic], 'ar-SA')
+  else narrator.read([latin], lang === 'id' ? 'id-ID' : 'en-US')
+}
+
+/** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
+function hijaiyahScreen(arg) {
+  const i = Number.parseInt(arg, 10)
+  if (!(i >= 0 && i < HIJAIYAH.length)) {
+    $app.replaceChildren(h('main', { class: 'hija' },
+      h('header', { class: 'hija-head' }, h('h1', {}, s.hijaiyahTitle), h('p', {}, s.hijaiyahHint)),
+      h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
+        h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`, style: `--c:${HIJAIYAH_COLORS[k % HIJAIYAH_COLORS.length]}`,
+          'aria-label': letter[1], onclick: () => sayLetter(letter) },
+          h('span', { class: 'hija-letter', lang: 'ar' }, letter[0]), h('span', { class: 'hija-name' }, letter[1]))))))
+    return () => narrator.stop()
+  }
+  const letter = HIJAIYAH[i]
+  const go = step => {
+    const k = (i + step + HIJAIYAH.length) % HIJAIYAH.length
+    sayLetter(HIJAIYAH[k])
+    location.replace(`#/hijaiyah/${k}`)
+  }
+  let x0 = null
+  const card = h('div', {
+    class: 'hija-card', style: `--c:${HIJAIYAH_COLORS[i % HIJAIYAH_COLORS.length]}`,
+    onpointerdown: e => { x0 = e.clientX },
+    onpointerup: e => {
+      if (x0 === null) return
+      const dx = e.clientX - x0
+      x0 = null
+      // Arabic reads right to left: swipe right for the next letter.
+      if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1)
+      else sayLetter(letter)
+    },
+  },
+    h('span', { class: 'hija-big', lang: 'ar' }, letter[0]),
+    h('span', { class: 'hija-label' }, letter[1]),
+    h('span', { class: 'hija-arabic', lang: 'ar' }, letter[2]))
+  $app.replaceChildren(h('main', { class: 'hija' },
+    h('div', { class: 'hija-top' },
+      h('a', { class: 'pill', href: '#/hijaiyah' }, `◀ ${s.hijaiyahAll}`),
+      h('span', { class: 'hija-count' }, `${i + 1} / ${HIJAIYAH.length}`)),
+    card,
+    h('div', { class: 'hija-controls' },
+      h('button', { class: 'hija-nav', 'aria-label': s.previous, onclick: () => go(-1) }, '◀'),
+      h('button', { class: 'hija-speak', 'aria-label': s.hijaiyahListen, onclick: () => sayLetter(letter) }, '🔊'),
+      h('button', { class: 'hija-nav', 'aria-label': s.next, onclick: () => go(1) }, '▶')),
+    narrator.canSpeak('ar') ? null : h('p', { class: 'hija-note' }, s.hijaiyahNoVoice)))
+  if (Date.now() - spokeAt > 1000) sayLetter(letter) // opened from a link, not a tap here
+  return () => narrator.stop()
 }
 
 // ── Daily reminder: a notification in the evening after a day away (api/remind.js) ─
