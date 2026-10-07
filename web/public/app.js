@@ -889,21 +889,33 @@ function sayLetter([, latin, arabic]) {
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback' } catch { /* older iOS */ }
   // An Arabic voice if the phone has one; otherwise the name in the app's language
   // with a voice that exists (many Android phones have no Arabic voice at all).
+  // Before Chrome has listed its voices (the first tap), just ask for Arabic.
   const voices = synth.getVoices()
-  const voice = narrator.voice('ar') ?? narrator.voice(lang) ?? voices.find(v => v.default) ?? voices[0]
-  const arabicVoice = voice?.lang.toLowerCase().startsWith('ar')
+  const voice = voices.length ? narrator.voice('ar') ?? narrator.voice(lang) ?? voices.find(v => v.default) ?? voices[0] : null
+  const arabicVoice = !voices.length || voice?.lang.toLowerCase().startsWith('ar')
   const u = utterance = new SpeechSynthesisUtterance(arabicVoice ? arabic : latin)
-  u.lang = voice?.lang ?? (lang === 'id' ? 'id-ID' : 'en-US')
+  u.lang = voice?.lang ?? 'ar-SA'
   if (voice) u.voice = voice
   u.rate = 0.8
   let started = false
   u.onstart = () => { started = true; soundHint(false) }
-  u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') soundHint(true, e.error) }
+  u.onerror = e => {
+    if (e.error === 'interrupted' || e.error === 'canceled') return
+    // No Arabic voice after all: say the name in the app's language instead.
+    if (!voice && synth.getVoices().length) return sayLetter(['', latin, latin])
+    soundHint(true, e.error)
+  }
   synth.resume() // Chrome can be left paused
   // On iPhone, speak() straight after cancel() is dropped, so give the cancel a moment.
   if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 120) }
   else synth.speak(u)
   setTimeout(() => { if (utterance === u && !started) soundHint() }, 1500)
+}
+
+// Leaving the grid for a card (or one card for the next) must not cut off the
+// letter the tap just started saying; leaving the tab does.
+function stopLetterUnlessStaying() {
+  if (!location.hash.startsWith('#/hijaiyah')) window.speechSynthesis?.cancel()
 }
 
 function soundHint(show = true, reason = '') {
@@ -922,7 +934,7 @@ function hijaiyahScreen(arg) {
         h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
           h('span', { class: 'hija-glyph hija-letter', lang: 'ar' }, letter[0]), h('span', { class: 'hija-name' }, letter[1]))))))
-    return () => narrator.stop()
+    return stopLetterUnlessStaying
   }
   const letter = HIJAIYAH[i]
   const go = step => {
@@ -959,7 +971,7 @@ function hijaiyahScreen(arg) {
     h('p', { class: 'hija-note hija-sound', 'aria-live': 'polite' }),
     narrator.canSpeak('ar') ? null : h('p', { class: 'hija-note' }, s.hijaiyahNoVoice)))
   if (Date.now() - spokeAt > 1000) sayLetter(letter) // opened from a link, not a tap here
-  return () => narrator.stop()
+  return stopLetterUnlessStaying
 }
 
 // ── Daily reminder: a notification in the evening after a day away (api/remind.js) ─
