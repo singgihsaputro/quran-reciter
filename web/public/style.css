@@ -256,20 +256,24 @@ body.dark .tab.on { color: #fff; background: rgba(255,255,255,.14); }
   box-shadow: 0 6px 16px rgba(0,0,0,.5);
 }
 .hija-tile:active { transform: scale(.94); }
-.hija-letter { font-family: 'Amiri Quran', serif; font-size: 54px; line-height: 1; height: 104px; display: flex; align-items: center; padding-bottom: 30px; }
+/* Amiri Quran reserves 1.82em above the baseline; its letters use at most 0.79em above
+   and 0.53em below. A 1.4em box with line-height .51 puts the baseline at 0.85em,
+   so every letter — tails of خ غ ع included — fits with nothing wasted. */
+.hija-glyph { font-family: 'Amiri Quran', serif; display: block; height: 1.4em; line-height: .51; text-align: center; }
+.hija-letter { font-size: 54px; }
 .hija-name { font-size: 15px; font-weight: 900; color: var(--hija-yellow); }
 .hija-top { display: flex; justify-content: space-between; align-items: center; }
 .hija-top .pill { background: rgba(255,255,255,.14); color: #fff; text-decoration: none; }
 .hija-count { color: #9A9AA8; font-weight: 800; }
 .hija-card {
-  margin: 14px 0; min-height: 56vh; border-radius: 28px; padding: 18px 12px 0;
+  margin: 12px 0; border-radius: 28px; padding: 14px 12px 2vh;
   background: linear-gradient(175deg, #333 0%, #1F1F1F 55%, #161616 100%); box-shadow: 0 16px 40px rgba(0,0,0,.6);
   display: grid; justify-items: center; align-content: start; gap: 2px; color: var(--hija-yellow);
   touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: pointer;
 }
-.hija-bismillah { font-family: 'Amiri Quran', serif; font-size: 22px; color: #fff; line-height: 2; }
-.hija-label { margin-top: 4vh; font-size: 52px; font-weight: 900; color: var(--hija-yellow); line-height: 1.1; }
-.hija-big { font-family: 'Amiri Quran', serif; font-size: min(42vw, 28vh); line-height: 1; padding: 3vh 0 14vh; }
+.hija-bismillah { font-family: 'Amiri Quran', serif; font-size: 20px; color: #fff; line-height: 1.9; }
+.hija-label { margin-top: 1vh; font-size: clamp(36px, 7vh, 52px); font-weight: 900; color: var(--hija-yellow); line-height: 1.1; }
+.hija-big { font-size: min(48vw, 26vh); margin-top: 1vh; }
 .hija-controls { display: flex; justify-content: center; align-items: center; gap: 22px; margin-bottom: 12px; }
 .hija-nav { width: 64px; height: 64px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 26px; }
 .hija-speak { width: 96px; height: 96px; border-radius: 50%; border: 0; background: var(--hija-yellow); font-size: 44px; box-shadow: 0 10px 30px rgba(255,225,26,.3); }

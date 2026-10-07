@@ -871,11 +871,37 @@ const HIJAIYAH = [
 // iPhones only speak from inside a tap, so a tap says the letter itself and
 // the card it opens doesn't say it again.
 let spokeAt = 0
-/** Says a letter's name: in Arabic if the phone has an Arabic voice, else its Indonesian name. */
+let utterance = null // kept alive: browsers drop the events of a collected utterance
+
+/**
+ * Says a letter's name: in Arabic if the phone has an Arabic voice, else its
+ * Indonesian name. If nothing starts within 1.5 s (an iPhone in silent mode, no
+ * voice installed), the card says so instead of staying quiet.
+ */
 function sayLetter([, latin, arabic]) {
   spokeAt = Date.now()
-  if (narrator.canSpeak('ar')) narrator.read([arabic], 'ar-SA')
-  else narrator.read([latin], lang === 'id' ? 'id-ID' : 'en-US')
+  const synth = window.speechSynthesis
+  if (!synth) return soundHint()
+  // iOS 17+: speak like media, not like a game sound muted by the ringer switch.
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback' } catch { /* older iOS */ }
+  const voice = narrator.voice('ar')
+  const arabicVoice = voice || synth.getVoices().length === 0 // voices not listed yet: try Arabic
+  const u = utterance = new SpeechSynthesisUtterance(arabicVoice ? arabic : latin)
+  u.lang = voice?.lang ?? (arabicVoice ? 'ar-SA' : lang === 'id' ? 'id-ID' : 'en-US')
+  if (voice) u.voice = voice
+  u.rate = 0.8
+  let started = false
+  u.onstart = () => { started = true; soundHint(false) }
+  synth.resume() // Chrome can be left paused
+  // On iPhone, speak() straight after cancel() is dropped, so give the cancel a moment.
+  if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 120) }
+  else synth.speak(u)
+  setTimeout(() => { if (utterance === u && !started) soundHint() }, 1500)
+}
+
+function soundHint(show = true) {
+  const el = document.querySelector('.hija-sound')
+  if (el) el.textContent = show ? s.hijaiyahNoSound : ''
 }
 
 /** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
@@ -887,7 +913,7 @@ function hijaiyahScreen(arg) {
       h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
         h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
-          h('span', { class: 'hija-letter', lang: 'ar' }, letter[0]), h('span', { class: 'hija-name' }, letter[1]))))))
+          h('span', { class: 'hija-glyph hija-letter', lang: 'ar' }, letter[0]), h('span', { class: 'hija-name' }, letter[1]))))))
     return () => narrator.stop()
   }
   const letter = HIJAIYAH[i]
@@ -912,7 +938,7 @@ function hijaiyahScreen(arg) {
     // Like a printed flash card: bismillah, the name, then the letter, yellow on charcoal.
     h('span', { class: 'hija-bismillah', lang: 'ar' }, 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ'),
     h('span', { class: 'hija-label' }, letter[1]),
-    h('span', { class: 'hija-big', lang: 'ar' }, letter[0]))
+    h('span', { class: 'hija-glyph hija-big', lang: 'ar' }, letter[0]))
   $app.replaceChildren(h('main', { class: 'hija' },
     h('div', { class: 'hija-top' },
       h('a', { class: 'pill', href: '#/hijaiyah' }, `◀ ${s.hijaiyahAll}`),
@@ -922,6 +948,7 @@ function hijaiyahScreen(arg) {
       h('button', { class: 'hija-nav', 'aria-label': s.previous, onclick: () => go(-1) }, '◀'),
       h('button', { class: 'hija-speak', 'aria-label': s.hijaiyahListen, onclick: () => sayLetter(letter) }, '🔊'),
       h('button', { class: 'hija-nav', 'aria-label': s.next, onclick: () => go(1) }, '▶')),
+    h('p', { class: 'hija-note hija-sound', 'aria-live': 'polite' }),
     narrator.canSpeak('ar') ? null : h('p', { class: 'hija-note' }, s.hijaiyahNoVoice)))
   if (Date.now() - spokeAt > 1000) sayLetter(letter) // opened from a link, not a tap here
   return () => narrator.stop()
