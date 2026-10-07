@@ -872,6 +872,9 @@ const HIJAIYAH = [
 // the card it opens doesn't say it again.
 let spokeAt = 0
 let utterance = null // kept alive: browsers drop the events of a collected utterance
+// Chrome lists its voices only after a moment; ask early so the first tap knows them.
+window.speechSynthesis?.getVoices()
+window.speechSynthesis?.addEventListener?.('voiceschanged', () => window.speechSynthesis.getVoices())
 
 /**
  * Says a letter's name: in Arabic if the phone has an Arabic voice, else its
@@ -884,14 +887,18 @@ function sayLetter([, latin, arabic]) {
   if (!synth) return soundHint()
   // iOS 17+: speak like media, not like a game sound muted by the ringer switch.
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback' } catch { /* older iOS */ }
-  const voice = narrator.voice('ar')
-  const arabicVoice = voice || synth.getVoices().length === 0 // voices not listed yet: try Arabic
+  // An Arabic voice if the phone has one; otherwise the name in the app's language
+  // with a voice that exists (many Android phones have no Arabic voice at all).
+  const voices = synth.getVoices()
+  const voice = narrator.voice('ar') ?? narrator.voice(lang) ?? voices.find(v => v.default) ?? voices[0]
+  const arabicVoice = voice?.lang.toLowerCase().startsWith('ar')
   const u = utterance = new SpeechSynthesisUtterance(arabicVoice ? arabic : latin)
-  u.lang = voice?.lang ?? (arabicVoice ? 'ar-SA' : lang === 'id' ? 'id-ID' : 'en-US')
+  u.lang = voice?.lang ?? (lang === 'id' ? 'id-ID' : 'en-US')
   if (voice) u.voice = voice
   u.rate = 0.8
   let started = false
   u.onstart = () => { started = true; soundHint(false) }
+  u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') soundHint(true, e.error) }
   synth.resume() // Chrome can be left paused
   // On iPhone, speak() straight after cancel() is dropped, so give the cancel a moment.
   if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => synth.speak(u), 120) }
@@ -899,9 +906,10 @@ function sayLetter([, latin, arabic]) {
   setTimeout(() => { if (utterance === u && !started) soundHint() }, 1500)
 }
 
-function soundHint(show = true) {
+function soundHint(show = true, reason = '') {
   const el = document.querySelector('.hija-sound')
-  if (el) el.textContent = show ? s.hijaiyahNoSound : ''
+  // The reason (the browser's own error code) helps when a parent reports it.
+  if (el) el.textContent = show ? `${s.hijaiyahNoSound}${reason ? ` (${reason})` : ''}` : ''
 }
 
 /** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
