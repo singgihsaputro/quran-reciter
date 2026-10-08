@@ -924,31 +924,12 @@ function soundHint(show = true, reason = '') {
   if (el) el.textContent = show ? `${s.hijaiyahNoSound}${reason ? ` (${reason})` : ''}` : ''
 }
 
-// Alif Ba Ta songs, sound only: the official tracks in Spotify's audio player.
-// The songs belong to their creators and play from Spotify — never copied here.
-const SONGS = [
-  ['3cq048BS7k3VSD65hwecCz', 'Alif Ba Ta – Upin & Ipin'],
-  ['6SFNcxfJPcE85bwHZPC4jU', 'Alif Ba Ta – Omar & Hana'],
-  ['6ViYK9r1sJqdMretOEGxEf', 'Alif Ba Ta Tsa – Indonesia Bersholawat'],
-]
-
-function songList() {
-  return h('section', { class: 'songs' },
-    h('h2', {}, s.songsTitle), h('p', {}, s.songsHint),
-    SONGS.map(([id, title]) => h('iframe', {
-      class: 'song-player', title, loading: 'lazy', height: 80,
-      src: `https://open.spotify.com/embed/track/${id}?utm_source=generator&theme=0`,
-      allow: 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture',
-    })))
-}
-
 /** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
 function hijaiyahScreen(arg) {
   const i = Number.parseInt(arg, 10)
   if (!(i >= 0 && i < HIJAIYAH.length)) {
     $app.replaceChildren(h('main', { class: 'hija' },
       h('header', { class: 'hija-head' }, h('h1', {}, s.hijaiyahTitle), h('p', {}, s.hijaiyahHint)),
-      songList(),
       h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
         h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
