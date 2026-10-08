@@ -924,35 +924,22 @@ function soundHint(show = true, reason = '') {
   if (el) el.textContent = show ? `${s.hijaiyahNoSound}${reason ? ` (${reason})` : ''}` : ''
 }
 
-// Alif Ba Ta songs: the creators' own uploads, embedded from YouTube (the songs
-// are theirs, so they play from their channels — never copied here).
+// Alif Ba Ta songs, sound only: the official tracks in Spotify's audio player.
+// The songs belong to their creators and play from Spotify — never copied here.
 const SONGS = [
-  ['_MqrP0FQpeY', 'Upin & Ipin Mengaji – Alif Ba Ta', "Les' Copaque Production"],
-  ['RZEXngK9bWk', 'Mengenal Huruf Hijaiyah – Riko The Series', 'Riko The Series'],
-  ['LPmvbgW44y8', 'Alif Ba Ta – Syakira feat Yuzarsif', 'Runa & Syakira'],
-  ['a9CXUv3wLQA', 'Alif Ba Ta Bersama Upin & Ipin (30 minit)', "Les' Copaque Production"],
+  ['3cq048BS7k3VSD65hwecCz', 'Alif Ba Ta – Upin & Ipin'],
+  ['6SFNcxfJPcE85bwHZPC4jU', 'Alif Ba Ta – Omar & Hana'],
+  ['6ViYK9r1sJqdMretOEGxEf', 'Alif Ba Ta Tsa – Indonesia Bersholawat'],
 ]
-
-function playSong([id, title, channel]) {
-  window.speechSynthesis?.cancel()
-  const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`
-  openDialog(
-    h('h2', {}, `🎵 ${title}`),
-    h('div', { class: 'song-frame' }, h('iframe', {
-      src, title, allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen', allowfullscreen: true, referrerpolicy: 'strict-origin-when-cross-origin',
-    })),
-    h('p', { class: 'note' }, s.songCredit(channel)))
-  // Closing the sheet must stop the music: drop the player.
-  dialog.addEventListener('close', () => dialog.querySelector('.song-frame')?.remove(), { once: true })
-}
 
 function songList() {
   return h('section', { class: 'songs' },
     h('h2', {}, s.songsTitle), h('p', {}, s.songsHint),
-    h('div', { class: 'song-row' }, SONGS.map(song => h('button', { class: 'song', onclick: () => playSong(song) },
-      h('img', { src: `https://i.ytimg.com/vi/${song[0]}/mqdefault.jpg`, alt: '', loading: 'lazy', width: 320, height: 180 }),
-      h('span', { class: 'song-title' }, song[1]),
-      h('span', { class: 'song-channel' }, song[2])))))
+    SONGS.map(([id, title]) => h('iframe', {
+      class: 'song-player', title, loading: 'lazy', height: 80,
+      src: `https://open.spotify.com/embed/track/${id}?utm_source=generator&theme=0`,
+      allow: 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture',
+    })))
 }
 
 /** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
