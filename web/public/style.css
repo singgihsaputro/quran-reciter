@@ -256,6 +256,11 @@ body.dark .tab.on { color: #fff; background: rgba(255,255,255,.14); }
   box-shadow: 0 6px 16px rgba(0,0,0,.5);
 }
 .hija-tile:active { transform: scale(.94); }
+.hija-tile { transition: transform .2s, background .2s, color .2s; }
+.hija-tile.singing { transform: scale(1.1); background: var(--hija-yellow); color: #111; box-shadow: 0 0 0 4px rgba(255,225,26,.35), 0 10px 30px rgba(255,225,26,.35); }
+.hija-tile.singing .hija-name { color: #111; }
+.hija-song { width: 100%; margin-top: 14px; border: 0; border-radius: 999px; padding: 14px 18px; background: var(--hija-yellow); color: #111; font-size: 18px; font-weight: 900; box-shadow: 0 8px 24px rgba(255,225,26,.25); }
+.hija-song:active { transform: scale(.97); }
 /* Amiri Quran reserves 1.82em above the baseline; its letters use at most 0.79em above
    and 0.53em below. A 1.4em box with line-height .51 puts the baseline at 0.85em,
    so every letter — tails of خ غ ع included — fits with nothing wasted. */

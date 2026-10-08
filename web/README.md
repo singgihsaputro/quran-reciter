@@ -42,6 +42,10 @@ split into one file per letter, faded and loudness-normalised. The recording
 is in Arabic order (… ن ه و ي), the cards in Indonesian order (… ن و ه لا ء ي);
 لا and ء aren't in it and use the phone's voice. Credited in the Support tab.
 
+`public/hijaiyah/lagu-alif-ba-ta.mp3` is "Lagu Alif Ba Ta – Ayok Ngaji": an
+original tune made by `tools/alif-ba-ta-song.py` with those letter recordings
+on the beat (so it carries the same GFDL credit). Its timing is in `SONG` (app.js).
+
 ## Progress per account
 
 Stars are kept per account on each device, and separately for guests, so

@@ -878,6 +878,48 @@ const RECORDED = new Set([...Array(27).keys(), 29])
 const letterAudio = new Audio()
 letterAudio.preload = 'auto'
 
+// "Lagu Alif Ba Ta – Ayok Ngaji": an original tune with those recordings on the
+// beat (made by tools/alif-ba-ta-song.py). The first letter comes at `intro`
+// seconds, then one every `step`, in `order` (card indices).
+const SONG = { src: 'hijaiyah/lagu-alif-ba-ta.mp3', intro: 4.8, step: 1.2, order: [...Array(27).keys(), 29] }
+const songAudio = new Audio()
+songAudio.preload = 'none'
+let songFrame = 0
+
+function stopSong() {
+  songAudio.pause()
+  cancelAnimationFrame(songFrame)
+  document.querySelectorAll('.hija-tile.singing').forEach(el => el.classList.remove('singing'))
+  const button = document.querySelector('.hija-song')
+  if (button) button.textContent = s.songPlay
+}
+
+/** Plays the song and lights up each letter's tile as it's sung. */
+function toggleSong() {
+  if (!songAudio.paused) return stopSong()
+  window.speechSynthesis?.cancel()
+  letterAudio.pause()
+  if (!songAudio.src.endsWith(SONG.src)) songAudio.src = SONG.src
+  songAudio.currentTime = 0
+  songAudio.play().catch(stopSong)
+  document.querySelector('.hija-song').textContent = s.songStop
+  let lit = -1
+  const follow = () => {
+    const k = Math.floor((songAudio.currentTime - SONG.intro) / SONG.step)
+    const card = k >= 0 && k < SONG.order.length ? SONG.order[k] : -1
+    if (card !== lit) {
+      const tiles = document.querySelectorAll('.hija-tile')
+      tiles[lit]?.classList.remove('singing')
+      tiles[card]?.classList.add('singing')
+      tiles[card]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      lit = card
+    }
+    if (!songAudio.paused) songFrame = requestAnimationFrame(follow)
+  }
+  follow()
+}
+songAudio.addEventListener('ended', stopSong)
+
 let utterance = null // kept alive: browsers drop the events of a collected utterance
 // Chrome lists its voices only after a moment; ask early so the first tap knows them.
 window.speechSynthesis?.getVoices()
@@ -890,6 +932,7 @@ window.speechSynthesis?.addEventListener?.('voiceschanged', () => window.speechS
  */
 function sayLetter(letter) {
   spokeAt = Date.now()
+  stopSong() // a tap on a letter takes over from the song
   const i = HIJAIYAH.indexOf(letter)
   if (RECORDED.has(i)) {
     window.speechSynthesis?.cancel()
@@ -937,6 +980,7 @@ function stopLetterUnlessStaying() {
   if (location.hash.startsWith('#/hijaiyah')) return
   window.speechSynthesis?.cancel()
   letterAudio.pause()
+  stopSong()
 }
 
 function soundHint(show = true, reason = '') {
@@ -951,6 +995,7 @@ function hijaiyahScreen(arg) {
   if (!(i >= 0 && i < HIJAIYAH.length)) {
     $app.replaceChildren(h('main', { class: 'hija' },
       h('header', { class: 'hija-head' }, h('h1', {}, s.hijaiyahTitle), h('p', {}, s.hijaiyahHint)),
+      h('button', { class: 'hija-song', onclick: toggleSong }, songAudio.paused ? s.songPlay : s.songStop),
       h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
         h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
