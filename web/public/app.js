@@ -924,12 +924,44 @@ function soundHint(show = true, reason = '') {
   if (el) el.textContent = show ? `${s.hijaiyahNoSound}${reason ? ` (${reason})` : ''}` : ''
 }
 
+// Alif Ba Ta songs: the creators' own uploads, embedded from YouTube (the songs
+// are theirs, so they play from their channels — never copied here).
+const SONGS = [
+  ['_MqrP0FQpeY', 'Upin & Ipin Mengaji – Alif Ba Ta', "Les' Copaque Production"],
+  ['RZEXngK9bWk', 'Mengenal Huruf Hijaiyah – Riko The Series', 'Riko The Series'],
+  ['LPmvbgW44y8', 'Alif Ba Ta – Syakira feat Yuzarsif', 'Runa & Syakira'],
+  ['a9CXUv3wLQA', 'Alif Ba Ta Bersama Upin & Ipin (30 minit)', "Les' Copaque Production"],
+]
+
+function playSong([id, title, channel]) {
+  window.speechSynthesis?.cancel()
+  const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&modestbranding=1`
+  openDialog(
+    h('h2', {}, `🎵 ${title}`),
+    h('div', { class: 'song-frame' }, h('iframe', {
+      src, title, allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen', allowfullscreen: true, referrerpolicy: 'strict-origin-when-cross-origin',
+    })),
+    h('p', { class: 'note' }, s.songCredit(channel)))
+  // Closing the sheet must stop the music: drop the player.
+  dialog.addEventListener('close', () => dialog.querySelector('.song-frame')?.remove(), { once: true })
+}
+
+function songList() {
+  return h('section', { class: 'songs' },
+    h('h2', {}, s.songsTitle), h('p', {}, s.songsHint),
+    h('div', { class: 'song-row' }, SONGS.map(song => h('button', { class: 'song', onclick: () => playSong(song) },
+      h('img', { src: `https://i.ytimg.com/vi/${song[0]}/mqdefault.jpg`, alt: '', loading: 'lazy', width: 320, height: 180 }),
+      h('span', { class: 'song-title' }, song[1]),
+      h('span', { class: 'song-channel' }, song[2])))))
+}
+
 /** #/hijaiyah: every letter; #/hijaiyah/3: one big card, with the speaker and ◀ ▶. */
 function hijaiyahScreen(arg) {
   const i = Number.parseInt(arg, 10)
   if (!(i >= 0 && i < HIJAIYAH.length)) {
     $app.replaceChildren(h('main', { class: 'hija' },
       h('header', { class: 'hija-head' }, h('h1', {}, s.hijaiyahTitle), h('p', {}, s.hijaiyahHint)),
+      songList(),
       h('div', { class: 'hija-grid' }, HIJAIYAH.map((letter, k) =>
         h('a', { class: 'hija-tile', href: `#/hijaiyah/${k}`,
           'aria-label': letter[1], onclick: () => sayLetter(letter) },
