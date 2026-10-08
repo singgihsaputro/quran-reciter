@@ -279,6 +279,7 @@ body.dark .tab.on { color: #fff; background: rgba(255,255,255,.14); }
 .hija-speak { width: 96px; height: 96px; border-radius: 50%; border: 0; background: var(--hija-yellow); font-size: 44px; box-shadow: 0 10px 30px rgba(255,225,26,.3); }
 .hija-speak:active, .hija-nav:active { transform: scale(.92); }
 .hija-note { color: #B9B9C6; font-size: 13px; text-align: center; padding-bottom: 12px; }
+.about .credit { margin-top: 6px; font-size: 11px; opacity: .8; }
 
 /* ── Home additions ───────────────────────────────────────────────────── */
 .unlock { margin-top: 10px; border: 0; border-radius: 999px; padding: 8px 14px; background: var(--sun); color: var(--ink); font-weight: 900; }

@@ -32,6 +32,16 @@ app, iOS 16.4+). Each evening the cron nudges browsers that haven't opened the
 app for about a day — once per absence. Needs `VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY` and `CRON_SECRET` in Vercel (see `.env.example`).
 
+## Hijaiyah letter voices
+
+`public/hijaiyah/NN.mp3` (NN = the card's index in `HIJAIYAH`, app.js) are cut
+from [حروف الأبجدية العربية Arabic alphabet.ogg](https://commons.wikimedia.org/wiki/File:%D8%AD%D8%B1%D9%88%D9%81_%D8%A7%D9%84%D8%A3%D8%A8%D8%AC%D8%AF%D9%8A%D8%A9_%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9_Arabic_alphabet.ogg)
+by Ibraheem alex on Wikimedia Commons, under the
+[GNU Free Documentation License](https://www.gnu.org/licenses/fdl-1.3.html):
+split into one file per letter, faded and loudness-normalised. The recording
+is in Arabic order (… ن ه و ي), the cards in Indonesian order (… ن و ه لا ء ي);
+لا and ء aren't in it and use the phone's voice. Credited in the Support tab.
+
 ## Progress per account
 
 Stars are kept per account on each device, and separately for guests, so

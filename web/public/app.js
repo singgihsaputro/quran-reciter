@@ -871,6 +871,13 @@ const HIJAIYAH = [
 // iPhones only speak from inside a tap, so a tap says the letter itself and
 // the card it opens doesn't say it again.
 let spokeAt = 0
+// Real recordings of the letters (public/hijaiyah/NN.mp3, NN = the card's index),
+// cut from a native speaker's recording on Wikimedia Commons (credited in the
+// Support tab). It has the 28 letters; لا and ء fall back to the phone's voice.
+const RECORDED = new Set([...Array(27).keys(), 29])
+const letterAudio = new Audio()
+letterAudio.preload = 'auto'
+
 let utterance = null // kept alive: browsers drop the events of a collected utterance
 // Chrome lists its voices only after a moment; ask early so the first tap knows them.
 window.speechSynthesis?.getVoices()
@@ -881,8 +888,20 @@ window.speechSynthesis?.addEventListener?.('voiceschanged', () => window.speechS
  * Indonesian name. If nothing starts within 1.5 s (an iPhone in silent mode, no
  * voice installed), the card says so instead of staying quiet.
  */
-function sayLetter([, latin, arabic]) {
+function sayLetter(letter) {
   spokeAt = Date.now()
+  const i = HIJAIYAH.indexOf(letter)
+  if (RECORDED.has(i)) {
+    window.speechSynthesis?.cancel()
+    letterAudio.src = `hijaiyah/${String(i).padStart(2, '0')}.mp3`
+    letterAudio.play().then(() => soundHint(false)).catch(() => speakLetter(letter))
+    return
+  }
+  speakLetter(letter)
+}
+
+/** The phone's own voice: for لا and ء, and when a recording can't play. */
+function speakLetter([, latin, arabic]) {
   const synth = window.speechSynthesis
   if (!synth) return soundHint()
   // iOS 17+: speak like media, not like a game sound muted by the ringer switch.
@@ -902,7 +921,7 @@ function sayLetter([, latin, arabic]) {
   u.onerror = e => {
     if (e.error === 'interrupted' || e.error === 'canceled') return
     // No Arabic voice after all: say the name in the app's language instead.
-    if (!voice && synth.getVoices().length) return sayLetter(['', latin, latin])
+    if (!voice && synth.getVoices().length) return speakLetter(['', latin, latin])
     soundHint(true, e.error)
   }
   synth.resume() // Chrome can be left paused
@@ -915,7 +934,9 @@ function sayLetter([, latin, arabic]) {
 // Leaving the grid for a card (or one card for the next) must not cut off the
 // letter the tap just started saying; leaving the tab does.
 function stopLetterUnlessStaying() {
-  if (!location.hash.startsWith('#/hijaiyah')) window.speechSynthesis?.cancel()
+  if (location.hash.startsWith('#/hijaiyah')) return
+  window.speechSynthesis?.cancel()
+  letterAudio.pause()
 }
 
 function soundHint(show = true, reason = '') {
@@ -1146,7 +1167,11 @@ function supportScreen() {
     h('p', { class: 'privacy' }, s.privacy),
     h('footer', { class: 'about' },
       h('span', {}, `${s.about} · ${s.madeBy} `),
-      h('a', { href: 'https://singgihsaputro.github.io', target: '_blank', rel: 'noopener' }, 'singgihsaputro.github.io'))))
+      h('a', { href: 'https://singgihsaputro.github.io', target: '_blank', rel: 'noopener' }, 'singgihsaputro.github.io'),
+      // GFDL attribution for the letter recordings (cut into one file per letter).
+      h('p', { class: 'credit' }, `${s.letterVoiceCredit} `,
+        h('a', { href: 'https://commons.wikimedia.org/wiki/File:%D8%AD%D8%B1%D9%88%D9%81_%D8%A7%D9%84%D8%A3%D8%A8%D8%AC%D8%AF%D9%8A%D8%A9_%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9_Arabic_alphabet.ogg', target: '_blank', rel: 'noopener' }, 'Ibraheem alex, Wikimedia Commons'),
+        ' · ', h('a', { href: 'https://www.gnu.org/licenses/fdl-1.3.html', target: '_blank', rel: 'noopener' }, 'GFDL')))))
   return () => {}
 }
 
