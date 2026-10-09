@@ -1,7 +1,7 @@
-// POST { type: 'donate_tap' | 'share' } — a tap worth counting, signed in or not.
+// POST { type: 'donate_tap' | 'share' | 'shop_tap' } — a tap worth counting, signed in or not.
 import { body, currentUser, db, json, ready } from './_lib.js'
 
-const TYPES = new Set(['donate_tap', 'share'])
+const TYPES = new Set(['donate_tap', 'share', 'shop_tap'])
 
 export async function POST(request) {
   const { type } = await body(request)

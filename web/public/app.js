@@ -1199,6 +1199,8 @@ function supportScreen() {
       h('button', { class: 'btn', onclick: offerInstall }, s.installButton)) : null,
     canRemind && vapidKey ? h('section', { class: 'card' }, h('h2', {}, s.remindTitle), h('p', {}, s.remindText), reminderSwitch()) : null,
     h('section', { class: 'card' }, ...donateCard(), h('button', { class: 'btn ghost share', onclick: share }, s.share)),
+    h('section', { class: 'card' }, h('h2', {}, s.shopTitle), h('p', {}, s.shopText),
+      h('a', { class: 'btn ghost', href: 'https://lynk.id/singshop', target: '_blank', rel: 'noopener', onclick: () => track('shop_tap') }, s.shopLink)),
     h('button', {
       class: 'pill sound', 'aria-pressed': String(sfx.on),
       onclick: e => {

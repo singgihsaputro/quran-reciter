@@ -71,6 +71,7 @@ test('only an admin can open the dashboard', async () => {
 
   assert.equal((await event.POST(req('POST', { type: 'donate_tap' }, parent))).status, 200)
   assert.equal((await event.POST(req('POST', { type: 'share' }))).status, 200)
+  assert.equal((await event.POST(req('POST', { type: 'shop_tap' }))).status, 200)
   assert.equal((await event.POST(req('POST', { type: 'anything' }))).status, 400)
 
   assert.equal((await analytics.GET(req('GET'))).status, 401)
@@ -79,6 +80,7 @@ test('only an admin can open the dashboard', async () => {
   assert.equal(res.status, 200)
   const data = await res.json()
   assert.equal(data.totals.donate_taps, 1)
+  assert.equal(data.totals.shop_taps, 1)
   assert.equal(data.totals.shares, 1)
   assert.ok(data.logins.some(l => l.email === 'parent@example.com'))
   assert.equal(data.taps.find(t => t.type === 'donate_tap').email, 'parent@example.com')

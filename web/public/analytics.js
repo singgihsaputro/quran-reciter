@@ -127,15 +127,15 @@ function render(data) {
         data.signinAttempts.map(a => h('tr', {}, h('td', {}, a.done ? '✅ Finished' : a.failed ? '❌ Failed' : '⏳ Abandoned'),
           h('td', {}, a.browser), h('td', {}, CONTEXTS[a.context] ?? a.context), h('td', {}, who(a.email)), h('td', { class: 'num' }, when(a.created_at))))),
     ]],
-    taps: ['Donate & share taps', table([['Tap'], ['Who'], ['When', true]],
-      data.taps.map(e => h('tr', {}, h('td', {}, e.type === 'donate_tap' ? '💝 Donate' : '🔗 Share'), h('td', {}, who(e.email)), h('td', { class: 'num' }, when(e.created_at)))))],
+    taps: ['Donate, share & shop taps', table([['Tap'], ['Who'], ['When', true]],
+      data.taps.map(e => h('tr', {}, h('td', {}, { donate_tap: '💝 Donate', share: '🔗 Share', shop_tap: '🖨️ Shop' }[e.type] ?? e.type), h('td', {}, who(e.email)), h('td', { class: 'num' }, when(e.created_at)))))],
   }
   const [title, body] = views[view]
   $dash.replaceChildren(
     h('header', {}, h('h1', {}, 'Ayok Ngaji · Analytics'), h('p', { class: 'sub' }, `Updated ${when(Date.now())}`)),
     h('div', { class: 'kpis' },
       kpi(t.users, 'Accounts'), kpi(t.new_users_7d, 'New this week'), kpi(t.active_7d, 'Signed in this week'),
-      kpi(t.rating_avg ? `${t.rating_avg} ★` : '—', `Rating · ${t.ratings} reviews`), kpi(t.donate_taps, 'Donate taps'), kpi(t.shares, 'Shares'),
+      kpi(t.rating_avg ? `${t.rating_avg} ★` : '—', `Rating · ${t.ratings} reviews`), kpi(t.donate_taps, 'Donate taps'), kpi(t.shares, 'Shares'), kpi(t.shop_taps, 'Shop taps'),
       kpi(t.visitors_7d, 'Visitors this week'), kpi(t.views_7d, 'Page views this week'), kpi(t.recitations_7d, 'Recitations this week'),
       kpi(t.whole_surah_7d, 'Whole-surah this week'), kpi(t.avg_score_7d ?? '—', 'Avg score this week')),
     h('section', { class: 'card' }, h('h2', {}, 'Sign-ins per day'), chart(data.daily)),

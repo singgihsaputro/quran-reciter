@@ -21,7 +21,8 @@ export async function GET(request) {
         (SELECT COUNT(*) FROM ratings) AS ratings,
         (SELECT ROUND(AVG(stars), 2) FROM ratings) AS rating_avg,
         (SELECT COUNT(*) FROM events WHERE type = 'donate_tap') AS donate_taps,
-        (SELECT COUNT(*) FROM events WHERE type = 'share') AS shares`,
+        (SELECT COUNT(*) FROM events WHERE type = 'share') AS shares,
+        (SELECT COUNT(*) FROM events WHERE type = 'shop_tap') AS shop_taps`,
       args: [now - 7 * DAY, now - 7 * DAY],
     },
     `SELECT u.email, u.name, e.created_at FROM events e JOIN users u ON u.id = e.user_id
@@ -29,7 +30,7 @@ export async function GET(request) {
     `SELECT r.stars, r.text, r.created_at, u.email FROM ratings r LEFT JOIN users u ON u.id = r.user_id
       ORDER BY r.created_at DESC LIMIT 200`,
     `SELECT e.type, e.created_at, u.email FROM events e LEFT JOIN users u ON u.id = e.user_id
-      WHERE e.type IN ('donate_tap', 'share') ORDER BY e.created_at DESC LIMIT 200`,
+      WHERE e.type IN ('donate_tap', 'share', 'shop_tap') ORDER BY e.created_at DESC LIMIT 200`,
     {
       sql: `SELECT date(created_at / 1000, 'unixepoch', '+7 hours') AS day, type, COUNT(*) AS n
             FROM events WHERE created_at >= ? GROUP BY day, type ORDER BY day`,
