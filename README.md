@@ -1,6 +1,25 @@
-# Recite
+# Ayok Ngaji
 
-<img src="docs/logo.png" width="112" alt="Recite: a gold crescent and star over an open Qur'an, on a purple sky" align="right">
+<img src="docs/logo.png" width="112" alt="Ayok Ngaji: a gold crescent and star over an open Qur'an, on a purple sky" align="right">
+
+A free, ad-free Qur'an reciting game for children. It listens while a child
+recites, lights up every word it hears, gives stars, and plays the correct
+recitation when they slip. It also has hijaiyah flash cards with their own
+Alif Ba Ta song, and a bedtime story from the Qur'an for every night.
+
+**Live at [ayokngaji.my.id](https://ayokngaji.my.id)** · open source, and
+contributions are welcome (see [Contributing](#contributing)).
+
+- **[`web/`](web/) is the app in use**: a browser app (installable to the home
+  screen) with Google sign-in, progress per account, daily reminders and a
+  dashboard. Start with [web/README.md](web/README.md).
+- `app/` and `core/` are the Android app it began as, described below. It is
+  paused for now; the matching logic in `core/` is the same idea as
+  `web/public/matcher.js`.
+
+---
+
+## The Android app
 
 An Android Qur'an reader for children that plays like a game. It listens while
 you recite, lights up the words it hears, gives up to three stars for each verse,
@@ -167,3 +186,35 @@ word and mispronouncing one are different mistakes to a learner.
   Al-Fatihah), so voice to recognised text to score works end to end on a
   phone. How often a *correct* recitation of harder verses is misheard is still
   unmeasured.
+
+## Contributing
+
+Contributions are very welcome: bug reports from real recitations, better
+Indonesian or English text, accessibility, new stories, or code.
+
+- **Ideas and bugs:** open an [issue](https://github.com/singgihsaputro/quran-reciter/issues),
+  with the phone and browser you used. For a recitation that scored wrong, say
+  which surah and verse.
+- **Code:** fork, make a branch, then in `web/` run `npm install`, `npm run dev`
+  and `npm test`, and open a pull request that says what changed and how you
+  checked it. Plain ES modules, no build step.
+- **Never type Qur'anic text by hand.** Arabic, translations and verse lists come
+  from the published sources above via `tools/fetch_quran.py` and are committed
+  exactly as received.
+- **Stories** are retellings for children and must stay faithful to the verses
+  they cite; new or changed stories need review by someone knowledgeable before
+  they are merged.
+- **The database is additive only.** Schema changes go in `ready()` in
+  `web/api/_lib.js` as `CREATE … IF NOT EXISTS` (or a new column with a default);
+  never drop or reset anything, because children's progress is in it.
+- Keep it safe for children: no ads, no trackers.
+
+## License
+
+The code is [MIT](LICENSE). Not covered by it: the Qur'anic text, translations
+and recitation audio, which come from Quran.com and everyayah.com under their
+own terms; the hijaiyah letter recordings and the Alif Ba Ta song in
+`web/public/hijaiyah/`, which are under the GNU Free Documentation License (see
+[web/README.md](web/README.md)); the Ayok Ngaji name and logo; and the donation
+QR code (`web/public/qris-ayok-ngaji.jpg`), which is for this site only.
+
